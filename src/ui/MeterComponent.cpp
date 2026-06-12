@@ -9,11 +9,11 @@ using namespace mc3::colours;
 // VuMeter
 // ════════════════════════════════════════════════════════════════════════════
 VuMeter::VuMeter (juce::String lbl, float minDb_, float maxDb_, bool reverse_,
-                  float redZoneNorm_, std::function<float()> provider_)
+                  float redZoneNorm_, std::function<float()> provider_, bool enablePeakHold)
     : label (std::move (lbl)), minDb (minDb_), maxDb (maxDb_), reverse (reverse_),
-      redZoneNorm (redZoneNorm_), provider (std::move (provider_))
+      redZoneNorm (redZoneNorm_), provider (std::move (provider_)), peakHoldEnabled (enablePeakHold)
 {
-    currentAngle = targetAngle = angleLeft;
+    currentAngle = targetAngle = peakHoldAngle = angleLeft;
     startTimerHz (30);
 }
 
@@ -39,6 +39,25 @@ void VuMeter::timerCallback()
     // ballistics: ease toward target (snappier on attack, slower on release)
     const float coeff = (targetAngle > currentAngle) ? 0.5f : 0.2f;
     currentAngle += (targetAngle - currentAngle) * coeff;
+
+    // peak hold: latch the highest needle position, hold ~1s, then decay
+    if (peakHoldEnabled)
+    {
+        if (currentAngle >= peakHoldAngle)
+        {
+            peakHoldAngle = currentAngle;
+            peakHoldCounter = 30;          // ~1s at 30 Hz
+        }
+        else if (peakHoldCounter > 0)
+        {
+            --peakHoldCounter;
+        }
+        else
+        {
+            peakHoldAngle += (currentAngle - peakHoldAngle) * 0.08f;
+        }
+    }
+
     repaint();
 }
 
@@ -134,6 +153,17 @@ void VuMeter::paint (juce::Graphics& g)
     if (faceplate.isValid())
         g.drawImageAt (faceplate, 0, 0);
 
+    // peak-hold marker (a short amber tick on the scale arc)
+    if (peakHoldEnabled && peakHoldAngle > angleLeft + 0.02f)
+    {
+        const float scaleR = needleLen * 0.92f;
+        auto p1 = pivot.getPointOnCircumference (scaleR + 2.0f, peakHoldAngle);
+        auto p2 = pivot.getPointOnCircumference (scaleR - 7.0f, peakHoldAngle);
+        const bool inRed = peakHoldAngle >= angleLeft + redZoneNorm * (angleRight - angleLeft);
+        g.setColour ((inRed ? red : amber).withAlpha (0.95f));
+        g.drawLine (p1.x, p1.y, p2.x, p2.y, 2.2f);
+    }
+
     // needle
     auto tip = pivot.getPointOnCircumference (needleLen, currentAngle);
     g.setColour (juce::Colours::black.withAlpha (0.5f));
@@ -183,9 +213,9 @@ MeterPanel::MeterPanel (const LevelMeter& in, const LevelMeter& out,
                         const CompressorProcessor& fet, const CompressorProcessor& opto)
 {
     inputMeter  = std::make_unique<VuMeter> ("INPUT",  -40.0f, 0.0f, false, 0.85f,
-                                             [&in]  { return in.getPeakLevelDb(); });
+                                             [&in]  { return in.getPeakLevelDb(); }, true);
     outputMeter = std::make_unique<VuMeter> ("OUTPUT", -40.0f, 0.0f, false, 0.85f,
-                                             [&out] { return out.getPeakLevelDb(); });
+                                             [&out] { return out.getPeakLevelDb(); }, true);
     // GR meters: rest at the right (0 dB reduction), swing left as they compress;
     // no red zone (reverse=false, red disabled off-scale).
     fetGr  = std::make_unique<VuMeter> ("FET  GR",  -24.0f, 0.0f, false, 2.0f,

@@ -44,6 +44,23 @@ void MainComponent::paint (juce::Graphics& g)
     mc3::drawScrew (g, { getWidth() - m, getHeight() - m }, r);
 }
 
+void MainComponent::paintOverChildren (juce::Graphics& g)
+{
+    // Subtle vignette across the whole faceplate for depth.
+    auto b = getLocalBounds().toFloat();
+    juce::ColourGradient vig (juce::Colours::transparentBlack, b.getCentre(),
+                              juce::Colours::black.withAlpha (0.30f), b.getTopLeft(), true);
+    vig.addColour (0.65, juce::Colours::transparentBlack);
+    g.setGradientFill (vig);
+    g.fillRect (b);
+
+    // crisp inner border bevel
+    g.setColour (juce::Colours::black.withAlpha (0.6f));
+    g.drawRect (b, 1.5f);
+    g.setColour (juce::Colours::white.withAlpha (0.05f));
+    g.drawRect (b.reduced (1.5f), 1.0f);
+}
+
 void MainComponent::paintHeader (juce::Graphics& g, juce::Rectangle<int> area)
 {
     mc3::drawBrushedMetal (g, area.toFloat(), juce::Colour (0xFF44444a), juce::Colour (0xFF2a2a30));

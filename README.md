@@ -1,32 +1,51 @@
-# MC-3 FET and Opto Mastering Compressor
+# MC-3 — FET & Opto Mastering Compressor
 
-A professional audio plugin featuring dual compressors (FET and Opto), 3-band EQ, selectable transformer models, and 8x oversampling.
+A professional mastering-grade audio plugin (VST3 + Standalone) pairing a **FET**
+and an **Opto** compressor in series, with a 3-band EQ, selectable input/output
+transformer models, 8× oversampling, and a vintage analogue-hardware interface.
+
+![MC-3 user interface](docs/screenshot.png)
 
 ## Features
 
-- **Dual Compressors**: Independent FET and Opto compressor stages
-- **3-Band EQ**: Low (200Hz), Mid (2kHz), and High (8kHz) shelves/peaks
-- **Transformer Selection**: 3 selectable transformer models for input and output
-  - Bright: Linear, minimal coloration
-  - Neutral: Balanced transformer characteristics
-  - Warm: Colored with harmonic saturation
-- **8x Oversampling**: Optional high-quality oversampling for reduced aliasing
-- **Professional Controls**: 
-  - Threshold, Ratio, Attack, Release, Makeup Gain for each compressor
-  - Bypass switches for all processing stages
-  - Output gain control
+- **Dual compressors in series** — a fast, aggressive **FET** stage and a smooth,
+  musical **Opto** stage, each with independent Threshold, Ratio, Attack, Release
+  and Makeup gain.
+- **Per-compressor sculpting** — soft **Knee** (0–12 dB), **Lookahead** (0–50 ms),
+  and a **sidechain high-pass** filter so low end doesn't pump the mix.
+- **3-band EQ** — low shelf (200 Hz), mid bell (2 kHz), high shelf (8 kHz), ±12 dB.
+- **Transformer modelling** — Bright / Neutral / Warm characters, selectable
+  independently for input and output.
+- **8× oversampling** — optional, for clean, alias-free transient handling.
+- **Parallel compression** — global Dry/Wet mix.
+- **Metering** — backlit analogue **VU meters** with swinging needles, peak-hold,
+  scale numbers and glass reflections, for input/output level and per-compressor
+  gain reduction.
+- **Presets** — 7 factory presets plus save/load of your own.
+- **Resizable UI** — aspect-locked, scales 65–150 %.
 
-## Building
+## Downloads
+
+Pre-built **Windows** and **Linux** binaries (VST3 + Standalone) are attached to
+each [release](../../releases). Every push is also built in CI, with artifacts on
+the [Actions runs](../../actions).
+
+Install the VST3 by copying `MC-3 FET and Opto Mastering Compressor.vst3` into:
+
+| OS | VST3 folder |
+|----|-------------|
+| Windows | `C:\Program Files\Common Files\VST3` |
+| Linux | `~/.vst3` |
+
+## Building from source
 
 ### Requirements
 - CMake 3.21+
 - A C++17 compiler: **MSVC** on Windows, GCC/Clang on Linux, Apple Clang on macOS
 - JUCE 8.0.13 (fetched into `./JUCE`)
 
-### Build Instructions
-
-JUCE is not vendored in the repo. Clone it next to the sources first (the
-`CMakeLists.txt` does `add_subdirectory(JUCE)`):
+JUCE is not vendored. Clone it next to the sources first (the `CMakeLists.txt`
+does `add_subdirectory(JUCE)`):
 
 ```bash
 git clone --depth 1 --branch 8.0.13 https://github.com/juce-framework/JUCE.git
@@ -35,8 +54,7 @@ cmake --build build --config Release \
   --target MC3MasteringCompressor_VST3 MC3MasteringCompressor_Standalone
 ```
 
-Artifacts land in `build/MC3MasteringCompressor_artefacts/Release/` (`VST3/` and
-`Standalone/`).
+Artifacts land in `build/MC3MasteringCompressor_artefacts/Release/`.
 
 On Linux, install the JUCE dependencies first:
 
@@ -46,40 +64,42 @@ sudo apt-get install -y libasound2-dev libxinerama-dev libxrandr-dev \
   libcurl4-openssl-dev
 ```
 
-### Windows builds
+> **Windows note:** JUCE does not support MinGW (there's a hard `#error` in
+> `juce_core/system/juce_TargetPlatform.h`), so a Windows build **cannot** be
+> cross-compiled from Linux — use MSVC, or let the CI workflow build it.
 
-JUCE **does not support MinGW** (there is a hard `#error` in
-`juce_core/system/juce_TargetPlatform.h`), so a Windows plugin **cannot** be
-cross-compiled from Linux — it must be built with MSVC on Windows. The
-`.github/workflows/build.yml` workflow builds the Windows VST3 + Standalone on a
-`windows-latest` (MSVC) runner and uploads them as artifacts; run it locally on
-Windows with the commands above, or via GitHub Actions.
+## Releasing
 
-## Project Structure
+Push a version tag and CI builds all platforms and publishes a GitHub Release
+with the binaries attached:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+## Project structure
 
 ```
 src/
-├── PluginProcessor.h/cpp      # Main plugin processor
-├── PluginEditor.h/cpp         # Editor window
-├── dsp/                        # Audio processing modules
-│   ├── CompressorProcessor.*   # FET/Opto compressor implementation
-│   ├── EQProcessor.*           # 3-band EQ processor
-│   ├── TransformerSimulation.* # Transformer model simulation
-│   └── Oversampler.*           # 8x oversampling
-├── ui/                         # GUI components
-│   ├── MainComponent.*         # Main UI container
-│   ├── CompressorPanel.*       # Compressor controls
-│   ├── EQPanel.*               # EQ controls
-│   └── ControlsPanel.*         # Global controls
-└── utils/                      # Utilities
-    ├── Parameters.*            # Parameter definitions
-    └── Utilities.*             # Helper functions
+├── PluginProcessor.*          # Plugin processor: signal chain + parameter plumbing
+├── PluginEditor.*             # Editor window (resizable, aspect-locked)
+├── dsp/
+│   ├── CompressorProcessor.*  # FET/Opto compressor (knee, lookahead, dry/wet)
+│   ├── SidechainFilter.*      # Detector high-pass filter
+│   ├── EQProcessor.*          # 3-band EQ
+│   ├── TransformerSimulation.*# Transformer colour models
+│   ├── Oversampler.*          # 8× oversampling
+│   └── LevelMeter.*           # Lock-free metering
+├── ui/
+│   ├── MC3LookAndFeel.*       # Vintage hardware look (knobs, switches, metal)
+│   ├── LabeledKnob.h          # Rotary + engraved caption + APVTS binding
+│   ├── MeterComponent.*       # Analogue VU meters
+│   ├── MainComponent.*        # Faceplate layout + header
+│   ├── CompressorPanel.*  EQPanel.*  ControlsPanel.*  PresetPanel.*
+└── utils/
+    ├── Parameters.*           # APVTS parameter layout
+    ├── ParameterSmoothing.h   # Click-free parameter ramps
+    ├── PresetManager.*        # Save/load + factory presets
+    └── Utilities.h            # dB/linear helpers
 ```
-
-## Next Steps
-
-1. Connect parameter bindings between UI and DSP processors
-2. Implement meter/visualization components
-3. Add preset management system
-4. Optimize DSP for real-time performance
-5. Add factory presets

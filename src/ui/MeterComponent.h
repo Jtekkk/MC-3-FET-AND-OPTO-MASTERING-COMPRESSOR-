@@ -11,7 +11,8 @@ class VuMeter : public juce::Component, private juce::Timer
 {
 public:
     VuMeter (juce::String label, float minDb, float maxDb, bool reverse,
-             float redZoneNorm, std::function<float()> valueProvider);
+             float redZoneNorm, std::function<float()> valueProvider,
+             bool enablePeakHold = false);
     ~VuMeter() override;
 
     void paint (juce::Graphics& g) override;
@@ -27,10 +28,13 @@ private:
     bool  reverse;
     float redZoneNorm;             // 0..1 where the red arc begins
     std::function<float()> provider;
+    bool  peakHoldEnabled = false;
 
     float currentAngle = 0.0f;     // smoothed needle angle (radians from vertical)
     float targetAngle  = 0.0f;
     bool  overload = false;
+    float peakHoldAngle = angleLeft;
+    int   peakHoldCounter = 0;
 
     juce::Image faceplate;         // cached static background
     juce::Rectangle<float> windowBounds;  // inner lit window (for glass reflection)
