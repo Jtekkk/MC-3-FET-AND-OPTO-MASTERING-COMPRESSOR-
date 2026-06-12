@@ -1,0 +1,87 @@
+name: Build
+
+# Builds the MC-3 plugin (VST3 + Standalone) on real OS runners.
+#
+# Windows builds use MSVC — this is the ONLY supported way to produce a Windows
+# JUCE plugin. JUCE explicitly rejects MinGW (#error in juce_TargetPlatform.h),
+# so cross-compiling from Linux is not possible; CI on windows-latest is the path.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "**" ]
+    paths-ignore:
+      - '**.md'
+
+env:
+  JUCE_TAG: "8.0.13"
+  BUILD_TYPE: Release
+
+jobs:
+  windows:
+    name: Windows (MSVC, x64)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Fetch JUCE ${{ env.JUCE_TAG }}
+        run: git clone --depth 1 --branch ${{ env.JUCE_TAG }} https://github.com/juce-framework/JUCE.git JUCE
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+
+      - name: Build VST3 + Standalone
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target MC3MasteringCompressor_VST3 MC3MasteringCompressor_Standalone --parallel
+
+      - name: Collect artifacts
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp -r "build/MC3MasteringCompressor_artefacts/${BUILD_TYPE}/VST3/"*.vst3 dist/ || true
+          cp -r "build/MC3MasteringCompressor_artefacts/${BUILD_TYPE}/Standalone/"*.exe dist/ || true
+          ls -R dist
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: MC-3-Windows-x64
+          path: dist/
+          if-no-files-found: error
+
+  linux:
+    name: Linux (GCC, x64)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install JUCE Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libasound2-dev libxinerama-dev libxrandr-dev libxcursor-dev \
+            libxcomposite-dev libfreetype6-dev libfontconfig1-dev libcurl4-openssl-dev
+
+      - name: Fetch JUCE ${{ env.JUCE_TAG }}
+        run: git clone --depth 1 --branch ${{ env.JUCE_TAG }} https://github.com/juce-framework/JUCE.git JUCE
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+
+      - name: Build VST3 + Standalone
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target MC3MasteringCompressor_VST3 MC3MasteringCompressor_Standalone --parallel
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p dist
+          cp -r "build/MC3MasteringCompressor_artefacts/${BUILD_TYPE}/VST3/"*.vst3 dist/ || true
+          cp -r "build/MC3MasteringCompressor_artefacts/${BUILD_TYPE}/Standalone/"* dist/standalone-linux || true
+          ls -R dist
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: MC-3-Linux-x64
+          path: dist/
+          if-no-files-found: error

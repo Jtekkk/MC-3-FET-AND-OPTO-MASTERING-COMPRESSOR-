@@ -20,17 +20,40 @@ A professional audio plugin featuring dual compressors (FET and Opto), 3-band EQ
 
 ### Requirements
 - CMake 3.21+
-- C++17 compatible compiler
-- JUCE framework
+- A C++17 compiler: **MSVC** on Windows, GCC/Clang on Linux, Apple Clang on macOS
+- JUCE 8.0.13 (fetched into `./JUCE`)
 
 ### Build Instructions
 
+JUCE is not vendored in the repo. Clone it next to the sources first (the
+`CMakeLists.txt` does `add_subdirectory(JUCE)`):
+
 ```bash
-mkdir build
-cd build
-cmake ..
-cmake --build .
+git clone --depth 1 --branch 8.0.13 https://github.com/juce-framework/JUCE.git
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release \
+  --target MC3MasteringCompressor_VST3 MC3MasteringCompressor_Standalone
 ```
+
+Artifacts land in `build/MC3MasteringCompressor_artefacts/Release/` (`VST3/` and
+`Standalone/`).
+
+On Linux, install the JUCE dependencies first:
+
+```bash
+sudo apt-get install -y libasound2-dev libxinerama-dev libxrandr-dev \
+  libxcursor-dev libxcomposite-dev libfreetype6-dev libfontconfig1-dev \
+  libcurl4-openssl-dev
+```
+
+### Windows builds
+
+JUCE **does not support MinGW** (there is a hard `#error` in
+`juce_core/system/juce_TargetPlatform.h`), so a Windows plugin **cannot** be
+cross-compiled from Linux — it must be built with MSVC on Windows. The
+`.github/workflows/build.yml` workflow builds the Windows VST3 + Standalone on a
+`windows-latest` (MSVC) runner and uploads them as artifacts; run it locally on
+Windows with the commands above, or via GitHub Actions.
 
 ## Project Structure
 
