@@ -9,6 +9,18 @@ MC3PluginAudioProcessor::MC3PluginAudioProcessor()
     , apvts (*this, nullptr, "Parameters", createParameterLayout())
 {
     apvts.state.addListener (this);
+
+    // Construct all DSP objects up front so the editor can safely bind to the
+    // meters and compressors even before prepareToPlay() is called.
+    fetCompressor     = std::make_unique<CompressorProcessor> (CompressorType::FET);
+    optoCompressor    = std::make_unique<CompressorProcessor> (CompressorType::OPTO);
+    eqProcessor       = std::make_unique<EQProcessor>();
+    inputTransformer  = std::make_unique<TransformerSimulation> (TransformerType::INPUT);
+    outputTransformer = std::make_unique<TransformerSimulation> (TransformerType::OUTPUT);
+    oversampler       = std::make_unique<Oversampler> (8, getSampleRate());
+    inputMeter        = std::make_unique<LevelMeter>();
+    outputMeter       = std::make_unique<LevelMeter>();
+
     presetManager = std::make_unique<PresetManager> (*this);
 }
 
@@ -19,15 +31,6 @@ MC3PluginAudioProcessor::~MC3PluginAudioProcessor()
 
 void MC3PluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    fetCompressor    = std::make_unique<CompressorProcessor> (CompressorType::FET);
-    optoCompressor   = std::make_unique<CompressorProcessor> (CompressorType::OPTO);
-    eqProcessor      = std::make_unique<EQProcessor>();
-    inputTransformer  = std::make_unique<TransformerSimulation> (TransformerType::INPUT);
-    outputTransformer = std::make_unique<TransformerSimulation> (TransformerType::OUTPUT);
-    oversampler      = std::make_unique<Oversampler> (8, sampleRate);
-    inputMeter       = std::make_unique<LevelMeter>();
-    outputMeter      = std::make_unique<LevelMeter>();
-
     fetCompressor->prepareToPlay    (sampleRate, samplesPerBlock);
     optoCompressor->prepareToPlay   (sampleRate, samplesPerBlock);
     eqProcessor->prepareToPlay      (sampleRate, samplesPerBlock);
@@ -40,15 +43,10 @@ void MC3PluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBl
 
 void MC3PluginAudioProcessor::releaseResources()
 {
-    fetCompressor.reset();
-    optoCompressor.reset();
-    eqProcessor.reset();
-    inputTransformer.reset();
-    outputTransformer.reset();
-    oversampler.reset();
-    inputMeter.reset();
-    outputMeter.reset();
-    presetManager.reset();
+    // DSP objects are owned for the processor's lifetime and referenced by the
+    // editor (meters, compressors), so they are NOT destroyed here. Playback may
+    // stop and restart while the editor stays open. They are torn down with the
+    // processor itself.
 }
 
 bool MC3PluginAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
