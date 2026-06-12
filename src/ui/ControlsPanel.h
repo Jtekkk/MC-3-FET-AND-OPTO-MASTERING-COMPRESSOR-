@@ -22,12 +22,14 @@ private:
     juce::ComboBox     inputTransformerBox;
     juce::ComboBox     outputTransformerBox;
     juce::ToggleButton oversamplingButton { "8x Oversampling" };
+    juce::Slider       dryWetSlider       { juce::Slider::LinearHorizontal, juce::Slider::TextBoxRight };
     juce::Slider       outputGainSlider   { juce::Slider::LinearHorizontal, juce::Slider::TextBoxRight };
 
     // Attachments after widgets
     APVTS::ComboBoxAttachment inputTransformerAttach;
     APVTS::ComboBoxAttachment outputTransformerAttach;
     APVTS::ButtonAttachment   oversamplingAttach;
+    APVTS::SliderAttachment   dryWetAttach;
     APVTS::SliderAttachment   outputGainAttach;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ControlsPanel)
