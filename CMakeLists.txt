@@ -58,6 +58,7 @@ target_sources(MC3MasteringCompressor PRIVATE
     # Utilities
     src/utils/Parameters.cpp
     src/utils/Parameters.h
+    src/utils/ParameterSmoothing.h
     src/utils/PresetManager.cpp
     src/utils/PresetManager.h
     src/utils/Utilities.cpp
