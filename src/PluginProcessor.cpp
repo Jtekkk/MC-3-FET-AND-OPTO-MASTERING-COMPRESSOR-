@@ -82,12 +82,18 @@ void MC3PluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
     fetCompressor->setAttack     (param (apvts, "fetAttack"));
     fetCompressor->setRelease    (param (apvts, "fetRelease"));
     fetCompressor->setMakeupGain (param (apvts, "fetMakeupGain"));
+    fetCompressor->setKneeWidth  (param (apvts, "fetKneeWidth"));
+    fetCompressor->setLookahead  (param (apvts, "fetLookahead"));
+    fetCompressor->setDryWet     (param (apvts, "dryWetMix"));
 
     optoCompressor->setThreshold  (param (apvts, "optoThreshold"));
     optoCompressor->setRatio      (param (apvts, "optoRatio"));
     optoCompressor->setAttack     (param (apvts, "optoAttack"));
     optoCompressor->setRelease    (param (apvts, "optoRelease"));
     optoCompressor->setMakeupGain (param (apvts, "optoMakeupGain"));
+    optoCompressor->setKneeWidth  (param (apvts, "optoKneeWidth"));
+    optoCompressor->setLookahead  (param (apvts, "optoLookahead"));
+    optoCompressor->setDryWet     (param (apvts, "dryWetMix"));
 
     eqProcessor->setLowGain  (param (apvts, "eqLowGain"));
     eqProcessor->setMidGain  (param (apvts, "eqMidGain"));

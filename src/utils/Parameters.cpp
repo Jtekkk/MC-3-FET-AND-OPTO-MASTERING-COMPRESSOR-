@@ -30,6 +30,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
         "fetBypass", "FET Bypass", "",
         juce::NormalisableRange<float> (0.0f, 1.0f), 0.0f, nullptr, nullptr));
 
+    params.push_back (std::make_unique<Parameter> (
+        "fetKneeWidth", "FET Knee Width", "",
+        juce::NormalisableRange<float> (0.0f, 12.0f), 0.0f, nullptr, nullptr));
+
+    params.push_back (std::make_unique<Parameter> (
+        "fetLookahead", "FET Lookahead", "",
+        juce::NormalisableRange<float> (0.0f, 50.0f), 0.0f, nullptr, nullptr));
+
     // Opto Compressor Parameters
     params.push_back (std::make_unique<Parameter> (
         "optoThreshold", "Opto Threshold", "",
@@ -54,6 +62,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
     params.push_back (std::make_unique<Parameter> (
         "optoBypass", "Opto Bypass", "",
         juce::NormalisableRange<float> (0.0f, 1.0f), 0.0f, nullptr, nullptr));
+
+    params.push_back (std::make_unique<Parameter> (
+        "optoKneeWidth", "Opto Knee Width", "",
+        juce::NormalisableRange<float> (0.0f, 12.0f), 0.0f, nullptr, nullptr));
+
+    params.push_back (std::make_unique<Parameter> (
+        "optoLookahead", "Opto Lookahead", "",
+        juce::NormalisableRange<float> (0.0f, 50.0f), 0.0f, nullptr, nullptr));
 
     // EQ Parameters
     params.push_back (std::make_unique<Parameter> (
@@ -84,6 +100,10 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
     // Oversampling and Output
     params.push_back (std::make_unique<Parameter> (
         "useOversampling", "Use Oversampling", "",
+        juce::NormalisableRange<float> (0.0f, 1.0f), 1.0f, nullptr, nullptr));
+
+    params.push_back (std::make_unique<Parameter> (
+        "dryWetMix", "Dry/Wet Mix", "",
         juce::NormalisableRange<float> (0.0f, 1.0f), 1.0f, nullptr, nullptr));
 
     params.push_back (std::make_unique<Parameter> (
