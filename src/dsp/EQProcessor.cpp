@@ -50,17 +50,24 @@ void EQProcessor::setHighGain (float db)
     updateHighShelf();
 }
 
+// NOTE: JUCE's make*Shelf / makePeakFilter take a LINEAR gain factor, not dB.
+// lowGain/midGain/highGain are in decibels (0 dB = no change), so they must be
+// converted: 0 dB -> factor 1.0 (unity). Passing the dB value directly meant
+// 0 dB became a gain factor of 0.0 (-inf dB), cutting each band to silence.
 void EQProcessor::updateLowShelf()
 {
-    *lowShelf.state = *juce::dsp::IIR::Coefficients<float>::makeLowShelf (sampleRate, 200.0f, 0.707f, lowGain);
+    *lowShelf.state = *juce::dsp::IIR::Coefficients<float>::makeLowShelf (
+        sampleRate, 200.0f, 0.707f, juce::Decibels::decibelsToGain (lowGain));
 }
 
 void EQProcessor::updateMidPeak()
 {
-    *midPeak.state = *juce::dsp::IIR::Coefficients<float>::makePeakFilter (sampleRate, 2000.0f, 0.707f, midGain);
+    *midPeak.state = *juce::dsp::IIR::Coefficients<float>::makePeakFilter (
+        sampleRate, 2000.0f, 0.707f, juce::Decibels::decibelsToGain (midGain));
 }
 
 void EQProcessor::updateHighShelf()
 {
-    *highShelf.state = *juce::dsp::IIR::Coefficients<float>::makeHighShelf (sampleRate, 8000.0f, 0.707f, highGain);
+    *highShelf.state = *juce::dsp::IIR::Coefficients<float>::makeHighShelf (
+        sampleRate, 8000.0f, 0.707f, juce::Decibels::decibelsToGain (highGain));
 }
