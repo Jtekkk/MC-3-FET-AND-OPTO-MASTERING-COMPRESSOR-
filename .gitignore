@@ -19,3 +19,4 @@ CMakeFiles/
 *.xcodeproj/
 *.xcworkspace/
 DerivedData/
+/JUCE/

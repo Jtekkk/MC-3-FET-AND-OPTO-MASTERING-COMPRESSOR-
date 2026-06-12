@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(MC3MasteringCompressor VERSION 1.0.0 LANGUAGES CXX)
+project(MC3MasteringCompressor VERSION 1.0.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -10,6 +10,7 @@ add_subdirectory(JUCE)
 # Main plugin target
 juce_add_plugin(MC3MasteringCompressor
     COMPANY_NAME "JTekk Audio"
+    BUNDLE_ID "com.jtekkaudio.mc3masteringcompressor"
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT FALSE
     NEEDS_MIDI_OUTPUT FALSE
