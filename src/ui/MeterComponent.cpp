@@ -62,6 +62,7 @@ void VuMeter::renderFaceplate()
     // recessed bezel
     mc3::drawBrushedMetal (g, bounds, metalDark, juce::Colour (0xFF2a2a2e), 6.0f);
     auto window = bounds.reduced (7.0f);
+    windowBounds = window;
     g.setColour (juce::Colours::black);
     g.fillRoundedRectangle (window, 4.0f);
 
@@ -104,6 +105,24 @@ void VuMeter::renderFaceplate()
         g.strokePath (redArc, juce::PathStrokeType (1.6f));
     }
 
+    // scale numbers (5 evenly-spaced marks, like a real VU face)
+    for (int k = 0; k <= 4; ++k)
+    {
+        const float t  = (float) k / 4.0f;
+        const float a  = angleLeft + t * (angleRight - angleLeft);
+        const float db = minDb + t * (maxDb - minDb);
+        auto pos = pivot.getPointOnCircumference (scaleR - 15.0f, a);
+        const juce::String txt = (std::abs (db) < 0.5f) ? "0" : juce::String (juce::roundToInt (db));
+        g.setFont (MC3LookAndFeel::engravedFont (9.0f, true));
+        g.setColour ((t >= redZoneNorm) ? red.withAlpha (0.95f) : amber.withAlpha (0.85f));
+        g.drawText (txt, juce::Rectangle<float> (24.0f, 11.0f).withCentre (pos), juce::Justification::centred);
+    }
+
+    // "VU" marking
+    mc3::drawEngravedText (g, "VU", juce::Rectangle<int> (0, (int) (pivot.y - needleLen * 0.42f), w, 12),
+                           juce::Justification::centred, MC3LookAndFeel::engravedFont (8.0f, true),
+                           amber.withAlpha (0.6f));
+
     // label engraved at bottom
     mc3::drawEngravedText (g, label, juce::Rectangle<int> (0, h - 17, w, 14),
                            juce::Justification::centred, MC3LookAndFeel::engravedFont (11.0f, true),
@@ -133,6 +152,28 @@ void VuMeter::paint (juce::Graphics& g)
     if (overload) { g.setColour (red.withAlpha (0.5f)); g.fillEllipse (lamp.expanded (4.0f)); g.setColour (red); }
     else            g.setColour (juce::Colour (0xFF40181a));
     g.fillEllipse (lamp);
+
+    // glass reflection over the window (sits on top of the needle)
+    if (! windowBounds.isEmpty())
+    {
+        juce::Graphics::ScopedSaveState save (g);
+        juce::Path clip; clip.addRoundedRectangle (windowBounds, 4.0f);
+        g.reduceClipRegion (clip);
+
+        // soft diagonal sheen from the top-left
+        juce::ColourGradient sheen (juce::Colours::white.withAlpha (0.10f), windowBounds.getX(), windowBounds.getY(),
+                                    juce::Colours::transparentWhite, windowBounds.getCentreX(), windowBounds.getCentreY(), false);
+        g.setGradientFill (sheen);
+        g.fillRect (windowBounds);
+
+        // curved glare highlight across the upper portion
+        juce::Path glare;
+        glare.addEllipse (windowBounds.getX() - windowBounds.getWidth() * 0.25f,
+                          windowBounds.getY() - windowBounds.getHeight() * 0.75f,
+                          windowBounds.getWidth() * 1.1f, windowBounds.getHeight() * 1.0f);
+        g.setColour (juce::Colours::white.withAlpha (0.06f));
+        g.fillPath (glare);
+    }
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -141,9 +182,9 @@ void VuMeter::paint (juce::Graphics& g)
 MeterPanel::MeterPanel (const LevelMeter& in, const LevelMeter& out,
                         const CompressorProcessor& fet, const CompressorProcessor& opto)
 {
-    inputMeter  = std::make_unique<VuMeter> ("INPUT",  -48.0f, 0.0f, false, 0.86f,
+    inputMeter  = std::make_unique<VuMeter> ("INPUT",  -40.0f, 0.0f, false, 0.85f,
                                              [&in]  { return in.getPeakLevelDb(); });
-    outputMeter = std::make_unique<VuMeter> ("OUTPUT", -48.0f, 0.0f, false, 0.86f,
+    outputMeter = std::make_unique<VuMeter> ("OUTPUT", -40.0f, 0.0f, false, 0.85f,
                                              [&out] { return out.getPeakLevelDb(); });
     // GR meters: rest at the right (0 dB reduction), swing left as they compress;
     // no red zone (reverse=false, red disabled off-scale).

@@ -141,15 +141,15 @@ void MC3LookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int widt
     const float radius = juce::jmin (bounds.getWidth(), bounds.getHeight()) * 0.5f;
     const float angle  = startAngle + pos * (endAngle - startAngle);
 
-    // tick ring (engraved), amber for active portion
-    const int numTicks = 11;
+    // tick ring (engraved), amber for active portion — dense scale with majors
+    const int numTicks = 21;
     for (int i = 0; i < numTicks; ++i)
     {
         const float t = (float) i / (float) (numTicks - 1);
         const float a = startAngle + t * (endAngle - startAngle);
+        const bool major = (i % 5 == 0);
         auto p1 = centre.getPointOnCircumference (radius * 1.03f, a);
-        auto p2 = centre.getPointOnCircumference (radius * 1.16f, a);
-        const bool major = (i == 0 || i == numTicks - 1 || i == (numTicks - 1) / 2);
+        auto p2 = centre.getPointOnCircumference (radius * (major ? 1.17f : 1.10f), a);
         g.setColour (engrave.withAlpha (0.9f));
         g.drawLine (p1.x, p1.y, p2.x, p2.y, major ? 2.0f : 1.0f);
         if (a <= angle + 0.0001f)
@@ -196,6 +196,21 @@ void MC3LookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int widt
     g.drawEllipse (cap, 1.4f);
     g.setColour (juce::Colours::black.withAlpha (0.35f));
     g.drawEllipse (cap.expanded (1.0f), 1.0f);
+
+    // knurled grip notches around the cap rim
+    const int grips = 30;
+    for (int i = 0; i < grips; ++i)
+    {
+        const float a = (float) i / (float) grips * juce::MathConstants<float>::twoPi;
+        auto o  = centre.getPointOnCircumference (capR * 0.99f, a);
+        auto in = centre.getPointOnCircumference (capR * 0.84f, a);
+        g.setColour (juce::Colours::black.withAlpha (0.16f));
+        g.drawLine (o.x, o.y, in.x, in.y, 1.0f);
+        auto o2  = centre.getPointOnCircumference (capR * 0.99f, a + 0.04f);
+        auto in2 = centre.getPointOnCircumference (capR * 0.84f, a + 0.04f);
+        g.setColour (juce::Colours::white.withAlpha (0.05f));
+        g.drawLine (o2.x, o2.y, in2.x, in2.y, 1.0f);
+    }
 
     // amber pointer
     auto tip  = centre.getPointOnCircumference (capR * 0.95f, angle);

@@ -33,6 +33,7 @@ private:
     bool  overload = false;
 
     juce::Image faceplate;         // cached static background
+    juce::Rectangle<float> windowBounds;  // inner lit window (for glass reflection)
     juce::Point<float> pivot;
     float needleLen = 0.0f;
 

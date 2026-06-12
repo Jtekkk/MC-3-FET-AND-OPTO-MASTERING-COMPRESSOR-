@@ -37,6 +37,14 @@ public:
         slider.updateText();
     }
 
+    void parentHierarchyChanged() override
+    {
+        // Show the value bubble on hover/drag, parented to the top-level component
+        // so it is not clipped by this small knob.
+        if (auto* top = getTopLevelComponent())
+            slider.setPopupDisplayEnabled (true, true, top);
+    }
+
     void resized() override
     {
         auto b = getLocalBounds();
