@@ -7,6 +7,7 @@
 #include "dsp/Oversampler.h"
 #include "dsp/LevelMeter.h"
 #include "utils/Parameters.h"
+#include "utils/PresetManager.h"
 
 class MC3PluginAudioProcessor : public juce::AudioProcessor,
                                  public juce::ValueTree::Listener
@@ -45,6 +46,7 @@ public:
     const LevelMeter& getOutputMeter()        const { return *outputMeter; }
     const CompressorProcessor& getFetCompressor()  const { return *fetCompressor; }
     const CompressorProcessor& getOptoCompressor() const { return *optoCompressor; }
+    PresetManager& getPresetManager() { return *presetManager; }
 
 private:
     void valueTreePropertyChanged (juce::ValueTree& treeWhosePropertyChanged,
@@ -60,6 +62,7 @@ private:
     std::unique_ptr<Oversampler> oversampler;
     std::unique_ptr<LevelMeter> inputMeter;
     std::unique_ptr<LevelMeter> outputMeter;
+    std::unique_ptr<PresetManager> presetManager;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MC3PluginAudioProcessor)
 };

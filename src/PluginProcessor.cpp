@@ -9,6 +9,7 @@ MC3PluginAudioProcessor::MC3PluginAudioProcessor()
     , apvts (*this, nullptr, "Parameters", createParameterLayout())
 {
     apvts.state.addListener (this);
+    presetManager = std::make_unique<PresetManager> (*this);
 }
 
 MC3PluginAudioProcessor::~MC3PluginAudioProcessor()
@@ -47,6 +48,7 @@ void MC3PluginAudioProcessor::releaseResources()
     oversampler.reset();
     inputMeter.reset();
     outputMeter.reset();
+    presetManager.reset();
 }
 
 bool MC3PluginAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const

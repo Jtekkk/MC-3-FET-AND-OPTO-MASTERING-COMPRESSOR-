@@ -52,10 +52,14 @@ target_sources(MC3MasteringCompressor PRIVATE
     src/ui/ControlsPanel.h
     src/ui/MeterComponent.cpp
     src/ui/MeterComponent.h
+    src/ui/PresetPanel.cpp
+    src/ui/PresetPanel.h
 
     # Utilities
     src/utils/Parameters.cpp
     src/utils/Parameters.h
+    src/utils/PresetManager.cpp
+    src/utils/PresetManager.h
     src/utils/Utilities.cpp
     src/utils/Utilities.h
 )
