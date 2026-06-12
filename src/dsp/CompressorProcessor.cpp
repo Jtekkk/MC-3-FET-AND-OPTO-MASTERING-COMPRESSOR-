@@ -92,24 +92,23 @@ inline float CompressorProcessor::updateEnvelope (float peakDb) noexcept
     // Apply knee-adjusted threshold
     float adjustedThreshold = applyKnee (peakDb, kneeWidth);
 
+    // attackCoeff/releaseCoeff already encode the FET vs Opto character: the
+    // type-specific time-constant multipliers are baked in by
+    // updateCoefficientsIfNeeded(). They MUST be used directly here. Multiplying
+    // them by the type factor a second time can push the one-pole coefficient
+    // above 1.0 (e.g. Opto release ≈ 0.999 × 1.5 ≈ 1.5), which makes the
+    // envelope smoother an unstable filter: it diverges toward ±inf, the gain
+    // becomes inf/NaN, and the whole output is silenced.
     if (adjustedThreshold > threshold)
     {
         const float gainReduction = (threshold - adjustedThreshold) * (1.0f - invRatio);
         targetGain = MC3Utilities::dbToLinear (gainReduction);
 
-        // Type-specific attack
-        float attackMult = (type == CompressorType::FET) ? FET_ATTACK_MULT : OPTO_ATTACK_MULT;
-        float typeAttackCoeff = attackCoeff * (1.0f + (1.0f - attackMult) * 0.5f);
-
-        envelope = typeAttackCoeff * envelope + (1.0f - typeAttackCoeff) * targetGain;
+        envelope = attackCoeff * envelope + (1.0f - attackCoeff) * targetGain;
     }
     else
     {
-        // Type-specific release
-        float releaseMult = (type == CompressorType::FET) ? FET_RELEASE_MULT : OPTO_RELEASE_MULT;
-        float typeReleaseCoeff = releaseCoeff * releaseMult;
-
-        envelope = typeReleaseCoeff * envelope + (1.0f - typeReleaseCoeff) * 1.0f;
+        envelope = releaseCoeff * envelope + (1.0f - releaseCoeff) * 1.0f;
     }
 
     return envelope;
