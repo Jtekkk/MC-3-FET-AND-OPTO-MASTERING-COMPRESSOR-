@@ -10,7 +10,8 @@ MainComponent::MainComponent (MC3PluginAudioProcessor& processor) : processor (p
     compressorPanel = std::make_unique<CompressorPanel> (processor);
     eqPanel = std::make_unique<EQPanel> (processor);
     controlsPanel = std::make_unique<ControlsPanel> (processor);
-    meterPanel = std::make_unique<MeterPanel> (processor.getInputMeter(), processor.getOutputMeter());
+    meterPanel = std::make_unique<MeterPanel> (processor.getInputMeter(), processor.getOutputMeter(),
+                                                processor.getFetCompressor(), processor.getOptoCompressor());
 
     addAndMakeVisible (compressorPanel.get());
     addAndMakeVisible (eqPanel.get());

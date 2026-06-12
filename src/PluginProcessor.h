@@ -41,8 +41,10 @@ public:
     void setStateInformation (const void* data, int sizeInBytes) override;
 
     juce::AudioProcessorValueTreeState& getAPVTS() { return apvts; }
-    const LevelMeter& getInputMeter()  const { return *inputMeter; }
-    const LevelMeter& getOutputMeter() const { return *outputMeter; }
+    const LevelMeter& getInputMeter()         const { return *inputMeter; }
+    const LevelMeter& getOutputMeter()        const { return *outputMeter; }
+    const CompressorProcessor& getFetCompressor()  const { return *fetCompressor; }
+    const CompressorProcessor& getOptoCompressor() const { return *optoCompressor; }
 
 private:
     void valueTreePropertyChanged (juce::ValueTree& treeWhosePropertyChanged,
