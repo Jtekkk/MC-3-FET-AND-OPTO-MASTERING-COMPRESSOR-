@@ -1,5 +1,6 @@
 #pragma once
 
+#include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_gui_basics/juce_gui_basics.h>
 
 class MC3PluginAudioProcessor;
@@ -14,12 +15,20 @@ public:
     void resized() override;
 
 private:
+    using APVTS = juce::AudioProcessorValueTreeState;
+
     MC3PluginAudioProcessor& processor;
 
-    std::unique_ptr<juce::Slider> lowGainSlider;
-    std::unique_ptr<juce::Slider> midGainSlider;
-    std::unique_ptr<juce::Slider> highGainSlider;
-    std::unique_ptr<juce::ToggleButton> eqBypassButton;
+    juce::Slider       lowGainSlider  { juce::Slider::RotaryVerticalDrag, juce::Slider::TextBoxBelow };
+    juce::Slider       midGainSlider  { juce::Slider::RotaryVerticalDrag, juce::Slider::TextBoxBelow };
+    juce::Slider       highGainSlider { juce::Slider::RotaryVerticalDrag, juce::Slider::TextBoxBelow };
+    juce::ToggleButton eqBypassButton { "Bypass" };
+
+    // Attachments after widgets
+    APVTS::SliderAttachment lowGainAttach;
+    APVTS::SliderAttachment midGainAttach;
+    APVTS::SliderAttachment highGainAttach;
+    APVTS::ButtonAttachment eqBypassAttach;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (EQPanel)
 };

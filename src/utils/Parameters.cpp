@@ -72,14 +72,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
         "eqBypass", "EQ Bypass", "",
         juce::NormalisableRange<float> (0.0f, 1.0f), 0.0f, nullptr, nullptr));
 
-    // Transformer Selection
+    // Transformer Selection — range 1–3 matches ComboBox item IDs
     params.push_back (std::make_unique<Parameter> (
         "inputTransformer", "Input Transformer", "",
-        juce::NormalisableRange<float> (0.0f, 2.0f), 1.0f, nullptr, nullptr));
+        juce::NormalisableRange<float> (1.0f, 3.0f, 1.0f), 2.0f, nullptr, nullptr));
 
     params.push_back (std::make_unique<Parameter> (
         "outputTransformer", "Output Transformer", "",
-        juce::NormalisableRange<float> (0.0f, 2.0f), 1.0f, nullptr, nullptr));
+        juce::NormalisableRange<float> (1.0f, 3.0f, 1.0f), 2.0f, nullptr, nullptr));
 
     // Oversampling and Output
     params.push_back (std::make_unique<Parameter> (

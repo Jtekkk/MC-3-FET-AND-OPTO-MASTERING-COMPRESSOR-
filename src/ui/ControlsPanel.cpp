@@ -1,51 +1,47 @@
 #include "ControlsPanel.h"
 #include "../PluginProcessor.h"
 
-ControlsPanel::ControlsPanel (MC3PluginAudioProcessor& processor) : processor (processor)
+ControlsPanel::ControlsPanel (MC3PluginAudioProcessor& p)
+    : processor (p)
+    , inputTransformerAttach  (p.getAPVTS(), "inputTransformer",  inputTransformerBox)
+    , outputTransformerAttach (p.getAPVTS(), "outputTransformer", outputTransformerBox)
+    , oversamplingAttach      (p.getAPVTS(), "useOversampling",   oversamplingButton)
+    , outputGainAttach        (p.getAPVTS(), "outputGain",        outputGainSlider)
 {
-    inputTransformerBox = std::make_unique<juce::ComboBox>();
-    inputTransformerBox->addItem ("Bright", 1);
-    inputTransformerBox->addItem ("Neutral", 2);
-    inputTransformerBox->addItem ("Warm", 3);
-    inputTransformerBox->setSelectedId (2);
-    addAndMakeVisible (inputTransformerBox.get());
+    auto addTransformerItems = [](juce::ComboBox& box)
+    {
+        box.addItem ("Bright",  1);
+        box.addItem ("Neutral", 2);
+        box.addItem ("Warm",    3);
+    };
 
-    outputTransformerBox = std::make_unique<juce::ComboBox>();
-    outputTransformerBox->addItem ("Bright", 1);
-    outputTransformerBox->addItem ("Neutral", 2);
-    outputTransformerBox->addItem ("Warm", 3);
-    outputTransformerBox->setSelectedId (2);
-    addAndMakeVisible (outputTransformerBox.get());
+    addTransformerItems (inputTransformerBox);
+    addTransformerItems (outputTransformerBox);
 
-    oversamplingButton = std::make_unique<juce::ToggleButton> ("8x Oversampling");
-    oversamplingButton->setToggleState (true, juce::NotificationType::dontSendNotification);
-    addAndMakeVisible (oversamplingButton.get());
-
-    outputGainSlider = std::make_unique<juce::Slider> (juce::Slider::LinearHorizontal, juce::Slider::TextBoxRight);
-    outputGainSlider->setRange (-12.0, 12.0, 0.1);
-    outputGainSlider->setValue (0.0);
-    addAndMakeVisible (outputGainSlider.get());
+    addAndMakeVisible (inputTransformerBox);
+    addAndMakeVisible (outputTransformerBox);
+    addAndMakeVisible (oversamplingButton);
+    addAndMakeVisible (outputGainSlider);
 }
 
-ControlsPanel::~ControlsPanel()
-{
-}
+ControlsPanel::~ControlsPanel() {}
 
 void ControlsPanel::paint (juce::Graphics& g)
 {
-    g.fillAll (juce::Colour (0xFF1a1a1a));
-    g.setColour (juce::Colours::white);
-    g.setFont (14.0f);
-    g.drawText ("Controls", 10, 10, 150, 20, juce::Justification::left);
-    g.drawText ("Input Transformer:", 10, 50, 150, 20, juce::Justification::left);
-    g.drawText ("Output Transformer:", 10, 100, 150, 20, juce::Justification::left);
-    g.drawText ("Output Gain:", 10, 200, 150, 20, juce::Justification::left);
+    g.fillAll (juce::Colour (0xFF222222));
+
+    g.setColour (juce::Colours::white.withAlpha (0.6f));
+    g.setFont (11.0f);
+
+    g.drawText ("INPUT TRANSFORMER",  10, 14, 140, 16, juce::Justification::left);
+    g.drawText ("OUTPUT TRANSFORMER", 10, 54, 140, 16, juce::Justification::left);
+    g.drawText ("OUTPUT GAIN",        10, 110, 140, 16, juce::Justification::left);
 }
 
 void ControlsPanel::resized()
 {
-    inputTransformerBox->setBounds (160, 50, 150, 25);
-    outputTransformerBox->setBounds (160, 100, 150, 25);
-    oversamplingButton->setBounds (160, 150, 150, 30);
-    outputGainSlider->setBounds (160, 200, 400, 30);
+    inputTransformerBox.setBounds  (155, 10,  160, 24);
+    outputTransformerBox.setBounds (155, 50,  160, 24);
+    oversamplingButton.setBounds   (350, 30,  160, 28);
+    outputGainSlider.setBounds     (155, 100, 500, 30);
 }

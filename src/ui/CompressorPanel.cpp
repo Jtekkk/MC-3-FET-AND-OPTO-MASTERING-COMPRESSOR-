@@ -1,92 +1,84 @@
 #include "CompressorPanel.h"
 #include "../PluginProcessor.h"
 
-CompressorPanel::CompressorPanel (MC3PluginAudioProcessor& processor) : processor (processor)
+CompressorPanel::CompressorPanel (MC3PluginAudioProcessor& p)
+    : processor (p)
+    , fetThresholdAttach  (p.getAPVTS(), "fetThreshold",  fetThresholdSlider)
+    , fetRatioAttach      (p.getAPVTS(), "fetRatio",      fetRatioSlider)
+    , fetAttackAttach     (p.getAPVTS(), "fetAttack",     fetAttackSlider)
+    , fetReleaseAttach    (p.getAPVTS(), "fetRelease",    fetReleaseSlider)
+    , fetMakeupGainAttach (p.getAPVTS(), "fetMakeupGain", fetMakeupGainSlider)
+    , fetBypassAttach     (p.getAPVTS(), "fetBypass",     fetBypassButton)
+    , optoThresholdAttach  (p.getAPVTS(), "optoThreshold",  optoThresholdSlider)
+    , optoRatioAttach      (p.getAPVTS(), "optoRatio",      optoRatioSlider)
+    , optoAttackAttach     (p.getAPVTS(), "optoAttack",     optoAttackSlider)
+    , optoReleaseAttach    (p.getAPVTS(), "optoRelease",    optoReleaseSlider)
+    , optoMakeupGainAttach (p.getAPVTS(), "optoMakeupGain", optoMakeupGainSlider)
+    , optoBypassAttach     (p.getAPVTS(), "optoBypass",     optoBypassButton)
 {
-    // FET Compressor
-    fetThresholdSlider = std::make_unique<juce::Slider> (juce::Slider::RotaryVerticalDrag, juce::Slider::TextBoxBelow);
-    fetThresholdSlider->setRange (-60.0, 0.0, 0.1);
-    fetThresholdSlider->setValue (-20.0);
-    addAndMakeVisible (fetThresholdSlider.get());
+    for (auto* s : { &fetThresholdSlider, &fetRatioSlider, &fetAttackSlider,
+                     &fetReleaseSlider, &fetMakeupGainSlider })
+        addAndMakeVisible (s);
 
-    fetRatioSlider = std::make_unique<juce::Slider> (juce::Slider::RotaryVerticalDrag, juce::Slider::TextBoxBelow);
-    fetRatioSlider->setRange (1.0, 20.0, 0.1);
-    fetRatioSlider->setValue (4.0);
-    addAndMakeVisible (fetRatioSlider.get());
+    addAndMakeVisible (fetBypassButton);
 
-    fetAttackSlider = std::make_unique<juce::Slider> (juce::Slider::RotaryVerticalDrag, juce::Slider::TextBoxBelow);
-    fetAttackSlider->setRange (0.1, 100.0, 0.1);
-    fetAttackSlider->setValue (10.0);
-    addAndMakeVisible (fetAttackSlider.get());
+    for (auto* s : { &optoThresholdSlider, &optoRatioSlider, &optoAttackSlider,
+                     &optoReleaseSlider, &optoMakeupGainSlider })
+        addAndMakeVisible (s);
 
-    fetReleaseSlider = std::make_unique<juce::Slider> (juce::Slider::RotaryVerticalDrag, juce::Slider::TextBoxBelow);
-    fetReleaseSlider->setRange (10.0, 2000.0, 1.0);
-    fetReleaseSlider->setValue (100.0);
-    addAndMakeVisible (fetReleaseSlider.get());
-
-    fetMakeupGainSlider = std::make_unique<juce::Slider> (juce::Slider::RotaryVerticalDrag, juce::Slider::TextBoxBelow);
-    fetMakeupGainSlider->setRange (0.0, 60.0, 0.1);
-    fetMakeupGainSlider->setValue (0.0);
-    addAndMakeVisible (fetMakeupGainSlider.get());
-
-    fetBypassButton = std::make_unique<juce::ToggleButton> ("FET Bypass");
-    addAndMakeVisible (fetBypassButton.get());
-
-    // Opto Compressor
-    optoThresholdSlider = std::make_unique<juce::Slider> (juce::Slider::RotaryVerticalDrag, juce::Slider::TextBoxBelow);
-    optoThresholdSlider->setRange (-60.0, 0.0, 0.1);
-    optoThresholdSlider->setValue (-20.0);
-    addAndMakeVisible (optoThresholdSlider.get());
-
-    optoRatioSlider = std::make_unique<juce::Slider> (juce::Slider::RotaryVerticalDrag, juce::Slider::TextBoxBelow);
-    optoRatioSlider->setRange (1.0, 20.0, 0.1);
-    optoRatioSlider->setValue (4.0);
-    addAndMakeVisible (optoRatioSlider.get());
-
-    optoAttackSlider = std::make_unique<juce::Slider> (juce::Slider::RotaryVerticalDrag, juce::Slider::TextBoxBelow);
-    optoAttackSlider->setRange (0.1, 100.0, 0.1);
-    optoAttackSlider->setValue (10.0);
-    addAndMakeVisible (optoAttackSlider.get());
-
-    optoReleaseSlider = std::make_unique<juce::Slider> (juce::Slider::RotaryVerticalDrag, juce::Slider::TextBoxBelow);
-    optoReleaseSlider->setRange (10.0, 2000.0, 1.0);
-    optoReleaseSlider->setValue (100.0);
-    addAndMakeVisible (optoReleaseSlider.get());
-
-    optoMakeupGainSlider = std::make_unique<juce::Slider> (juce::Slider::RotaryVerticalDrag, juce::Slider::TextBoxBelow);
-    optoMakeupGainSlider->setRange (0.0, 60.0, 0.1);
-    optoMakeupGainSlider->setValue (0.0);
-    addAndMakeVisible (optoMakeupGainSlider.get());
-
-    optoBypassButton = std::make_unique<juce::ToggleButton> ("Opto Bypass");
-    addAndMakeVisible (optoBypassButton.get());
+    addAndMakeVisible (optoBypassButton);
 }
 
-CompressorPanel::~CompressorPanel()
-{
-}
+CompressorPanel::~CompressorPanel() {}
 
 void CompressorPanel::paint (juce::Graphics& g)
 {
+    auto b = getLocalBounds();
     g.fillAll (juce::Colour (0xFF1a1a1a));
-    g.setColour (juce::Colours::white);
-    g.setFont (14.0f);
-    g.drawText ("FET Compressor", 10, 10, 150, 20, juce::Justification::left);
+
+    g.setColour (juce::Colours::orange);
+    g.setFont (juce::Font (13.0f, juce::Font::bold));
+    g.drawText ("FET COMPRESSOR",  b.getX() + 10, b.getY() + 6, b.getWidth() / 2 - 10, 18, juce::Justification::left);
+    g.drawText ("OPTO COMPRESSOR", b.getX() + b.getWidth() / 2 + 10, b.getY() + 6, b.getWidth() / 2 - 10, 18, juce::Justification::left);
+
+    g.setColour (juce::Colour (0xFF444444));
+    g.drawVerticalLine (b.getCentreX(), 0, (float) b.getHeight());
+    g.drawHorizontalLine (b.getBottom() - 1, (float) b.getX(), (float) b.getRight());
 }
 
 void CompressorPanel::resized()
 {
-    auto bounds = getLocalBounds().reduced (10);
-    auto width = bounds.getWidth();
-    auto height = bounds.getHeight();
+    auto b = getLocalBounds().reduced (8);
+    b.removeFromTop (26);
 
-    int sliderSize = 60;
-    int y = 40;
+    int halfW   = b.getWidth() / 2;
+    int knobSz  = 70;
+    int bypassH = 24;
+    int gap     = 6;
 
-    fetThresholdSlider->setBounds (10, y, sliderSize, sliderSize);
-    fetRatioSlider->setBounds (10 + sliderSize + 10, y, sliderSize, sliderSize);
-    fetAttackSlider->setBounds (10 + (sliderSize + 10) * 2, y, sliderSize, sliderSize);
-    fetReleaseSlider->setBounds (10 + (sliderSize + 10) * 3, y, sliderSize, sliderSize);
-    fetMakeupGainSlider->setBounds (10 + (sliderSize + 10) * 4, y, sliderSize, sliderSize);
-    fetBypassButton->setBounds (10 + (sliderSize + 10) * 5, y + 20, 100, 30);
+    auto layoutSection = [&](juce::Rectangle<int> area,
+                              juce::Slider& thresh, juce::Slider& ratio,
+                              juce::Slider& attack, juce::Slider& release,
+                              juce::Slider& makeup, juce::ToggleButton& bypass)
+    {
+        area.reduce (4, 0);
+        auto row = area.removeFromTop (knobSz);
+
+        auto knobSlot = [&]() { return row.removeFromLeft (knobSz + gap); };
+
+        thresh.setBounds (knobSlot().withHeight (knobSz));
+        ratio.setBounds  (knobSlot().withHeight (knobSz));
+        attack.setBounds (knobSlot().withHeight (knobSz));
+        release.setBounds(knobSlot().withHeight (knobSz));
+        makeup.setBounds (knobSlot().withHeight (knobSz));
+        bypass.setBounds (area.removeFromTop (bypassH).reduced (4, 0));
+    };
+
+    layoutSection (b.removeFromLeft (halfW),
+                   fetThresholdSlider, fetRatioSlider, fetAttackSlider,
+                   fetReleaseSlider, fetMakeupGainSlider, fetBypassButton);
+
+    layoutSection (b,
+                   optoThresholdSlider, optoRatioSlider, optoAttackSlider,
+                   optoReleaseSlider, optoMakeupGainSlider, optoBypassButton);
 }

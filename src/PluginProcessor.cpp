@@ -1,5 +1,6 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "utils/Utilities.h"
 
 MC3PluginAudioProcessor::MC3PluginAudioProcessor()
     : AudioProcessor (BusesProperties()
@@ -17,19 +18,19 @@ MC3PluginAudioProcessor::~MC3PluginAudioProcessor()
 
 void MC3PluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    fetCompressor = std::make_unique<CompressorProcessor>(CompressorType::FET);
-    optoCompressor = std::make_unique<CompressorProcessor>(CompressorType::OPTO);
-    eqProcessor = std::make_unique<EQProcessor>();
-    inputTransformer = std::make_unique<TransformerSimulation>(TransformerType::INPUT);
-    outputTransformer = std::make_unique<TransformerSimulation>(TransformerType::OUTPUT);
-    oversampler = std::make_unique<Oversampler>(8, sampleRate);
+    fetCompressor    = std::make_unique<CompressorProcessor> (CompressorType::FET);
+    optoCompressor   = std::make_unique<CompressorProcessor> (CompressorType::OPTO);
+    eqProcessor      = std::make_unique<EQProcessor>();
+    inputTransformer  = std::make_unique<TransformerSimulation> (TransformerType::INPUT);
+    outputTransformer = std::make_unique<TransformerSimulation> (TransformerType::OUTPUT);
+    oversampler      = std::make_unique<Oversampler> (8, sampleRate);
 
-    fetCompressor->prepareToPlay (sampleRate, samplesPerBlock);
-    optoCompressor->prepareToPlay (sampleRate, samplesPerBlock);
-    eqProcessor->prepareToPlay (sampleRate, samplesPerBlock);
-    inputTransformer->prepareToPlay (sampleRate, samplesPerBlock);
+    fetCompressor->prepareToPlay    (sampleRate, samplesPerBlock);
+    optoCompressor->prepareToPlay   (sampleRate, samplesPerBlock);
+    eqProcessor->prepareToPlay      (sampleRate, samplesPerBlock);
+    inputTransformer->prepareToPlay  (sampleRate, samplesPerBlock);
     outputTransformer->prepareToPlay (sampleRate, samplesPerBlock);
-    oversampler->prepareToPlay (sampleRate, samplesPerBlock);
+    oversampler->prepareToPlay       (sampleRate, samplesPerBlock);
 }
 
 void MC3PluginAudioProcessor::releaseResources()
@@ -48,59 +49,75 @@ bool MC3PluginAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts
      && layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
         return false;
 
-    if (layouts.getMainOutputChannelSet() != layouts.getMainInputChannelSet())
-        return false;
+    return layouts.getMainOutputChannelSet() == layouts.getMainInputChannelSet();
+}
 
-    return true;
+// Helper to load one raw parameter value
+static inline float param (juce::AudioProcessorValueTreeState& apvts, const char* id)
+{
+    return apvts.getRawParameterValue (id)->load();
 }
 
 void MC3PluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
 {
     juce::ScopedNoDenormals noDenormals;
-    auto totalNumInputChannels = getTotalNumInputChannels();
-    auto totalNumOutputChannels = getTotalNumOutputChannels();
 
-    for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
+    for (int i = getTotalNumInputChannels(); i < getTotalNumOutputChannels(); ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
-    // Get parameter values
-    auto useOversampling = apvts.getRawParameterValue ("useOversampling")->load() > 0.5f;
-    auto fetBypass = apvts.getRawParameterValue ("fetBypass")->load() > 0.5f;
-    auto optoBypass = apvts.getRawParameterValue ("optoBypass")->load() > 0.5f;
-    auto eqBypass = apvts.getRawParameterValue ("eqBypass")->load() > 0.5f;
-    auto outputGain = apvts.getRawParameterValue ("outputGain")->load();
+    // ── Push current parameter values to DSP objects ──────────────────────
+    fetCompressor->setThreshold  (param (apvts, "fetThreshold"));
+    fetCompressor->setRatio      (param (apvts, "fetRatio"));
+    fetCompressor->setAttack     (param (apvts, "fetAttack"));
+    fetCompressor->setRelease    (param (apvts, "fetRelease"));
+    fetCompressor->setMakeupGain (param (apvts, "fetMakeupGain"));
 
-    // Process through input transformer
+    optoCompressor->setThreshold  (param (apvts, "optoThreshold"));
+    optoCompressor->setRatio      (param (apvts, "optoRatio"));
+    optoCompressor->setAttack     (param (apvts, "optoAttack"));
+    optoCompressor->setRelease    (param (apvts, "optoRelease"));
+    optoCompressor->setMakeupGain (param (apvts, "optoMakeupGain"));
+
+    eqProcessor->setLowGain  (param (apvts, "eqLowGain"));
+    eqProcessor->setMidGain  (param (apvts, "eqMidGain"));
+    eqProcessor->setHighGain (param (apvts, "eqHighGain"));
+
+    // ComboBox IDs are 1/2/3 → transformer index 0/1/2
+    inputTransformer->setType  ((int) param (apvts, "inputTransformer")  - 1);
+    outputTransformer->setType ((int) param (apvts, "outputTransformer") - 1);
+
+    // ── Bypass / oversampling flags ───────────────────────────────────────
+    const bool useOversampling = param (apvts, "useOversampling") > 0.5f;
+    const bool fetBypass       = param (apvts, "fetBypass")       > 0.5f;
+    const bool optoBypass      = param (apvts, "optoBypass")      > 0.5f;
+    const bool eqBypass        = param (apvts, "eqBypass")        > 0.5f;
+    const float outputGainDb   = param (apvts, "outputGain");
+
+    // ── Signal chain ──────────────────────────────────────────────────────
     inputTransformer->process (buffer);
+
+    auto process = [&](juce::AudioBuffer<float>& buf)
+    {
+        if (!fetBypass)  fetCompressor->process  (buf);
+        if (!optoBypass) optoCompressor->process (buf);
+        if (!eqBypass)   eqProcessor->process    (buf);
+    };
 
     if (useOversampling)
     {
-        auto* oversampledBuffer = oversampler->upsample (buffer);
-
-        if (!fetBypass)
-            fetCompressor->process (*oversampledBuffer);
-        if (!optoBypass)
-            optoCompressor->process (*oversampledBuffer);
-        if (!eqBypass)
-            eqProcessor->process (*oversampledBuffer);
-
-        oversampler->downsample (*oversampledBuffer, buffer);
+        auto* oversampledBuf = oversampler->upsample (buffer);
+        process (*oversampledBuf);
+        oversampler->downsample (*oversampledBuf, buffer);
     }
     else
     {
-        if (!fetBypass)
-            fetCompressor->process (buffer);
-        if (!optoBypass)
-            optoCompressor->process (buffer);
-        if (!eqBypass)
-            eqProcessor->process (buffer);
+        process (buffer);
     }
 
-    // Process through output transformer
     outputTransformer->process (buffer);
 
-    // Apply output gain
-    buffer.applyGain (outputGain);
+    // Convert output gain from dB to linear before applying
+    buffer.applyGain (MC3Utilities::dbToLinear (outputGainDb));
 }
 
 juce::AudioProcessorEditor* MC3PluginAudioProcessor::createEditor()
@@ -126,15 +143,7 @@ void MC3PluginAudioProcessor::setStateInformation (const void* data, int sizeInB
         apvts.replaceState (juce::ValueTree::fromXml (*xmlState));
 }
 
-void MC3PluginAudioProcessor::valueTreePropertyChanged (juce::ValueTree& treeWhosePropertyChanged,
-                                                        const juce::Identifier& property)
-{
-    // Handle parameter changes for real-time updates
-    if (treeWhosePropertyChanged == apvts.state)
-    {
-        // Real-time parameter updates can be handled here
-    }
-}
+void MC3PluginAudioProcessor::valueTreePropertyChanged (juce::ValueTree&, const juce::Identifier&) {}
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
