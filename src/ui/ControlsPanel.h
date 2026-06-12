@@ -21,16 +21,19 @@ private:
 
     juce::ComboBox     inputTransformerBox;
     juce::ComboBox     outputTransformerBox;
-    juce::ToggleButton oversamplingButton { "8x Oversampling" };
-    juce::Slider       dryWetSlider       { juce::Slider::LinearHorizontal, juce::Slider::TextBoxRight };
-    juce::Slider       outputGainSlider   { juce::Slider::LinearHorizontal, juce::Slider::TextBoxRight };
+    juce::ToggleButton oversamplingButton { "8X OVERSAMPLE" };
+    juce::Slider       dryWetSlider     { juce::Slider::LinearHorizontal, juce::Slider::TextBoxRight };
+    juce::Slider       outputGainSlider { juce::Slider::LinearHorizontal, juce::Slider::TextBoxRight };
 
-    // Attachments after widgets
-    APVTS::ComboBoxAttachment inputTransformerAttach;
-    APVTS::ComboBoxAttachment outputTransformerAttach;
+    // Combo attachments are built after the items are added, so they are pointers.
+    std::unique_ptr<APVTS::ComboBoxAttachment> inputTransformerAttach;
+    std::unique_ptr<APVTS::ComboBoxAttachment> outputTransformerAttach;
     APVTS::ButtonAttachment   oversamplingAttach;
     APVTS::SliderAttachment   dryWetAttach;
     APVTS::SliderAttachment   outputGainAttach;
+
+    juce::Rectangle<int> titleArea;
+    juce::Rectangle<int> lblInTf, lblOutTf, lblMix, lblOut;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ControlsPanel)
 };

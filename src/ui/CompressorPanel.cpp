@@ -1,104 +1,113 @@
 #include "CompressorPanel.h"
+#include "MC3LookAndFeel.h"
 #include "../PluginProcessor.h"
 
-CompressorPanel::CompressorPanel (MC3PluginAudioProcessor& p)
-    : processor (p)
-    , fetThresholdAttach  (p.getAPVTS(), "fetThreshold",  fetThresholdSlider)
-    , fetRatioAttach      (p.getAPVTS(), "fetRatio",      fetRatioSlider)
-    , fetAttackAttach     (p.getAPVTS(), "fetAttack",     fetAttackSlider)
-    , fetReleaseAttach    (p.getAPVTS(), "fetRelease",    fetReleaseSlider)
-    , fetMakeupGainAttach (p.getAPVTS(), "fetMakeupGain", fetMakeupGainSlider)
-    , fetKneeAttach       (p.getAPVTS(), "fetKneeWidth",  fetKneeSlider)
-    , fetLookaheadAttach  (p.getAPVTS(), "fetLookahead",  fetLookaheadSlider)
-    , fetBypassAttach     (p.getAPVTS(), "fetBypass",     fetBypassButton)
-    , optoThresholdAttach  (p.getAPVTS(), "optoThreshold",  optoThresholdSlider)
-    , optoRatioAttach      (p.getAPVTS(), "optoRatio",      optoRatioSlider)
-    , optoAttackAttach     (p.getAPVTS(), "optoAttack",     optoAttackSlider)
-    , optoReleaseAttach    (p.getAPVTS(), "optoRelease",    optoReleaseSlider)
-    , optoMakeupGainAttach (p.getAPVTS(), "optoMakeupGain", optoMakeupGainSlider)
-    , optoKneeAttach       (p.getAPVTS(), "optoKneeWidth",  optoKneeSlider)
-    , optoLookaheadAttach  (p.getAPVTS(), "optoLookahead",  optoLookaheadSlider)
-    , optoBypassAttach     (p.getAPVTS(), "optoBypass",     optoBypassButton)
+using namespace mc3::colours;
+
+CompressorPanel::CompressorPanel (MC3PluginAudioProcessor& p) : processor (p)
 {
-    for (auto* s : { &fetThresholdSlider, &fetRatioSlider, &fetAttackSlider,
-                     &fetReleaseSlider, &fetMakeupGainSlider, &fetKneeSlider,
-                     &fetLookaheadSlider })
-        addAndMakeVisible (s);
-
-    addAndMakeVisible (fetBypassButton);
-
-    for (auto* s : { &optoThresholdSlider, &optoRatioSlider, &optoAttackSlider,
-                     &optoReleaseSlider, &optoMakeupGainSlider, &optoKneeSlider,
-                     &optoLookaheadSlider })
-        addAndMakeVisible (s);
-
-    addAndMakeVisible (optoBypassButton);
+    buildStrip (fet,  "fet",  "FET COMPRESSOR",  amber);
+    buildStrip (opto, "opto", "OPTO COMPRESSOR", juce::Colour (0xFFE0A030));
 }
 
-CompressorPanel::~CompressorPanel() {}
+CompressorPanel::~CompressorPanel() = default;
+
+void CompressorPanel::buildStrip (Strip& s, const juce::String& prefix,
+                                  const juce::String& title, juce::Colour tint)
+{
+    auto& apvts = processor.getAPVTS();
+    s.title = title;
+    s.tint  = tint;
+
+    auto mk = [&] (const juce::String& id, const juce::String& cap,
+                   const juce::String& suffix, int decimals = 1)
+    {
+        auto k = std::make_unique<LabeledKnob> (apvts, prefix + id, cap, suffix, decimals);
+        addAndMakeVisible (*k);
+        return k;
+    };
+
+    s.threshold = mk ("Threshold",  "THRESH",  " dB");
+    s.ratio     = mk ("Ratio",      "RATIO",   ":1");
+    s.attack    = mk ("Attack",     "ATTACK",  " ms");
+    s.release   = mk ("Release",    "RELEASE", " ms", 0);
+    s.makeup    = mk ("MakeupGain", "MAKEUP",  " dB");
+    s.knee      = mk ("KneeWidth",  "KNEE",    " dB");
+    s.lookahead = mk ("Lookahead",  "LOOKAHD", " ms");
+    s.scFreq    = mk ("SidechainFreq", "SC FREQ", " Hz", 0);
+
+    addAndMakeVisible (s.bypass);
+    addAndMakeVisible (s.sidechain);
+    s.bypassAttach = std::make_unique<APVTS::ButtonAttachment> (apvts, prefix + "Bypass", s.bypass);
+    s.scAttach     = std::make_unique<APVTS::ButtonAttachment> (apvts, prefix + "SidechainEnabled", s.sidechain);
+}
 
 void CompressorPanel::paint (juce::Graphics& g)
 {
-    auto b = getLocalBounds();
-    g.fillAll (juce::Colour (0xFF1a1a1a));
+    mc3::drawBrushedMetal (g, getLocalBounds().toFloat(), faceTop, faceBottom);
+    paintStrip (g, fet);
+    paintStrip (g, opto);
 
-    g.setColour (juce::Colours::orange);
-    g.setFont (juce::Font (13.0f, juce::Font::bold));
-    g.drawText ("FET COMPRESSOR",  b.getX() + 10, b.getY() + 6, b.getWidth() / 2 - 10, 18, juce::Justification::left);
-    g.drawText ("OPTO COMPRESSOR", b.getX() + b.getWidth() / 2 + 10, b.getY() + 6, b.getWidth() / 2 - 10, 18, juce::Justification::left);
+    // divider rail between strips
+    g.setColour (juce::Colours::black.withAlpha (0.5f));
+    g.drawVerticalLine (getWidth() / 2, 8.0f, (float) getHeight() - 8.0f);
+    g.setColour (juce::Colours::white.withAlpha (0.06f));
+    g.drawVerticalLine (getWidth() / 2 + 1, 8.0f, (float) getHeight() - 8.0f);
+}
 
-    g.setColour (juce::Colour (0xFF444444));
-    g.drawVerticalLine (b.getCentreX(), 0, (float) b.getHeight());
-    g.drawHorizontalLine (b.getBottom() - 1, (float) b.getX(), (float) b.getRight());
+void CompressorPanel::paintStrip (juce::Graphics& g, Strip& s)
+{
+    // engraved title plate
+    auto plate = s.titleArea.toFloat();
+    mc3::drawBrushedMetal (g, plate, mc3::colours::panelRaised, juce::Colour (0xFF202024), 4.0f);
+    g.setColour (s.tint.withAlpha (0.6f));
+    g.drawRoundedRectangle (plate.reduced (0.5f), 4.0f, 1.0f);
+
+    // accent lamp
+    auto lamp = juce::Rectangle<float> (9.0f, 9.0f).withCentre ({ plate.getX() + 14.0f, plate.getCentreY() });
+    g.setColour (s.tint.withAlpha (0.5f)); g.fillEllipse (lamp.expanded (4.0f));
+    g.setColour (s.tint);                  g.fillEllipse (lamp);
+
+    mc3::drawEngravedText (g, s.title, s.titleArea.withTrimmedLeft (28),
+                           juce::Justification::centredLeft,
+                           MC3LookAndFeel::engravedFont (15.0f, true), mc3::colours::textLight);
 }
 
 void CompressorPanel::resized()
 {
-    auto b = getLocalBounds().reduced (8);
-    b.removeFromTop (26);
+    auto b = getLocalBounds();
+    layoutStrip (fet,  b.removeFromLeft (getWidth() / 2));
+    layoutStrip (opto, b);
+}
 
-    int halfW   = b.getWidth() / 2;
-    int knobSz  = 60;
-    int smallKnob = 50;
-    int bypassH = 24;
-    int gap     = 4;
+void CompressorPanel::layoutStrip (Strip& s, juce::Rectangle<int> area)
+{
+    s.bounds = area;
+    area.reduce (12, 10);
 
-    auto layoutSection = [&](juce::Rectangle<int> area,
-                              juce::Slider& thresh, juce::Slider& ratio,
-                              juce::Slider& attack, juce::Slider& release,
-                              juce::Slider& makeup, juce::Slider& knee,
-                              juce::Slider& lookahead, juce::ToggleButton& bypass)
-    {
-        area.reduce (4, 0);
+    s.titleArea = area.removeFromTop (26);
+    area.removeFromTop (8);
 
-        // Row 1: Main 5 controls
-        auto row1 = area.removeFromTop (knobSz);
-        auto knobSlot = [&](auto& r) { return r.removeFromLeft (knobSz + gap); };
+    // toggle row at the bottom
+    auto toggles = area.removeFromBottom (28);
+    s.bypass.setBounds    (toggles.removeFromLeft (toggles.getWidth() / 2).reduced (4, 2));
+    s.sidechain.setBounds (toggles.reduced (4, 2));
+    area.removeFromBottom (6);
 
-        thresh.setBounds (knobSlot(row1).withHeight (knobSz));
-        ratio.setBounds  (knobSlot(row1).withHeight (knobSz));
-        attack.setBounds (knobSlot(row1).withHeight (knobSz));
-        release.setBounds(knobSlot(row1).withHeight (knobSz));
-        makeup.setBounds (knobSlot(row1).withHeight (knobSz));
+    // two rows of four knobs
+    const int rows = 2, cols = 4;
+    const int rowH = area.getHeight() / rows;
 
-        // Row 2: Advanced controls (smaller)
-        auto row2 = area.removeFromTop (smallKnob + gap);
-        auto smallSlot = [&](auto& r) { return r.removeFromLeft (smallKnob + gap); };
-
-        knee.setBounds (smallSlot(row2).withHeight (smallKnob));
-        lookahead.setBounds (smallSlot(row2).withHeight (smallKnob));
-
-        // Bypass button
-        bypass.setBounds (area.removeFromTop (bypassH).reduced (4, 0));
+    LabeledKnob* grid[2][4] = {
+        { s.threshold.get(), s.ratio.get(),     s.attack.get(),    s.release.get() },
+        { s.makeup.get(),    s.knee.get(),      s.lookahead.get(), s.scFreq.get()  }
     };
 
-    layoutSection (b.removeFromLeft (halfW),
-                   fetThresholdSlider, fetRatioSlider, fetAttackSlider,
-                   fetReleaseSlider, fetMakeupGainSlider, fetKneeSlider,
-                   fetLookaheadSlider, fetBypassButton);
-
-    layoutSection (b,
-                   optoThresholdSlider, optoRatioSlider, optoAttackSlider,
-                   optoReleaseSlider, optoMakeupGainSlider, optoKneeSlider,
-                   optoLookaheadSlider, optoBypassButton);
+    for (int r = 0; r < rows; ++r)
+    {
+        auto row = area.removeFromTop (rowH);
+        const int colW = row.getWidth() / cols;
+        for (int c = 0; c < cols; ++c)
+            grid[r][c]->setBounds (row.removeFromLeft (colW).reduced (4));
+    }
 }

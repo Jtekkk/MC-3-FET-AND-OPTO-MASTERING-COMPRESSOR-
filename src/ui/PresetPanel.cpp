@@ -1,4 +1,5 @@
 #include "PresetPanel.h"
+#include "MC3LookAndFeel.h"
 #include "../utils/PresetManager.h"
 
 PresetPanel::PresetPanel (PresetManager& pm) : presetManager (pm)
@@ -24,24 +25,21 @@ PresetPanel::~PresetPanel()
 
 void PresetPanel::paint (juce::Graphics& g)
 {
-    g.fillAll (juce::Colour (0xFF2a2a2a));
-
-    g.setColour (juce::Colours::white);
-    g.setFont (juce::Font (11.0f, juce::Font::bold));
-    g.drawText ("PRESETS", 8, 6, 200, 16, juce::Justification::left);
-
-    g.setColour (juce::Colour (0xFF444444));
-    g.drawHorizontalLine (getHeight() - 1, 0.0f, (float) getWidth());
+    // Transparent — sits on the header faceplate. Just an engraved caption.
+    mc3::drawEngravedText (g, "PRESET", getLocalBounds().removeFromTop (13),
+                           juce::Justification::centredLeft,
+                           MC3LookAndFeel::engravedFont (10.0f, true), mc3::colours::textDim);
 }
 
 void PresetPanel::resized()
 {
-    auto b = getLocalBounds().reduced (8);
-    b.removeFromTop (22);
+    auto b = getLocalBounds();
+    b.removeFromTop (14);
 
-    presetSelector.setBounds (b.removeFromLeft (b.getWidth() - 120).reduced (0, 4));
-    saveButton.setBounds (b.removeFromLeft (55).reduced (2, 4));
-    deleteButton.setBounds (b.reduced (2, 4));
+    auto buttons = b.removeFromRight (118);
+    saveButton.setBounds   (buttons.removeFromLeft (57).reduced (2, 1));
+    deleteButton.setBounds (buttons.reduced (2, 1));
+    presetSelector.setBounds (b.removeFromRight (b.getWidth()).reduced (0, 1));
 }
 
 void PresetPanel::comboBoxChanged (juce::ComboBox* comboBox)

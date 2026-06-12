@@ -1,49 +1,45 @@
 #pragma once
 
 #include <juce_gui_basics/juce_gui_basics.h>
+#include <functional>
 
 class LevelMeter;
 class CompressorProcessor;
 
-class MeterDisplay : public juce::Component, private juce::Timer
+// A backlit analogue-style VU meter with a swinging needle.
+class VuMeter : public juce::Component, private juce::Timer
 {
 public:
-    explicit MeterDisplay (const LevelMeter& meter, const juce::String& label);
-    ~MeterDisplay() override;
+    VuMeter (juce::String label, float minDb, float maxDb, bool reverse,
+             float redZoneNorm, std::function<float()> valueProvider);
+    ~VuMeter() override;
 
     void paint (juce::Graphics& g) override;
     void resized() override;
 
 private:
     void timerCallback() override;
+    void renderFaceplate();
+    float valueToAngle (float db) const;
 
-    const LevelMeter& meter;
     juce::String label;
-    float displayPeakDb = -80.0f;
-    bool  displayClipping = false;
+    float minDb, maxDb;
+    bool  reverse;
+    float redZoneNorm;             // 0..1 where the red arc begins
+    std::function<float()> provider;
 
-    static constexpr int METER_MIN_DB = -60;
-    static constexpr int METER_MAX_DB = 0;
-};
+    float currentAngle = 0.0f;     // smoothed needle angle (radians from vertical)
+    float targetAngle  = 0.0f;
+    bool  overload = false;
 
-class GainReductionMeter : public juce::Component, private juce::Timer
-{
-public:
-    GainReductionMeter (const CompressorProcessor& compressor, const juce::String& label);
-    ~GainReductionMeter() override;
+    juce::Image faceplate;         // cached static background
+    juce::Point<float> pivot;
+    float needleLen = 0.0f;
 
-    void paint (juce::Graphics& g) override;
-    void resized() override;
+    static constexpr float angleLeft  = -0.62f;
+    static constexpr float angleRight =  0.62f;
 
-private:
-    void timerCallback() override;
-
-    const CompressorProcessor& compressor;
-    juce::String label;
-    float displayGrDb = 0.0f;
-
-    static constexpr int GR_MIN_DB = -30;
-    static constexpr int GR_MAX_DB = 0;
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (VuMeter)
 };
 
 class MeterPanel : public juce::Component
@@ -57,8 +53,10 @@ public:
     void resized() override;
 
 private:
-    std::unique_ptr<MeterDisplay> inputDisplay;
-    std::unique_ptr<MeterDisplay> outputDisplay;
-    std::unique_ptr<GainReductionMeter> fetGrMeter;
-    std::unique_ptr<GainReductionMeter> optoGrMeter;
+    std::unique_ptr<VuMeter> inputMeter;
+    std::unique_ptr<VuMeter> fetGr;
+    std::unique_ptr<VuMeter> optoGr;
+    std::unique_ptr<VuMeter> outputMeter;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MeterPanel)
 };

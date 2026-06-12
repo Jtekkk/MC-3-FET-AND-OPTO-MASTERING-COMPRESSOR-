@@ -1,47 +1,58 @@
 #include "EQPanel.h"
+#include "MC3LookAndFeel.h"
 #include "../PluginProcessor.h"
 
-EQPanel::EQPanel (MC3PluginAudioProcessor& p)
-    : processor (p)
-    , lowGainAttach  (p.getAPVTS(), "eqLowGain",  lowGainSlider)
-    , midGainAttach  (p.getAPVTS(), "eqMidGain",  midGainSlider)
-    , highGainAttach (p.getAPVTS(), "eqHighGain", highGainSlider)
-    , eqBypassAttach (p.getAPVTS(), "eqBypass",   eqBypassButton)
+using namespace mc3::colours;
+
+EQPanel::EQPanel (MC3PluginAudioProcessor& p) : processor (p)
 {
-    addAndMakeVisible (lowGainSlider);
-    addAndMakeVisible (midGainSlider);
-    addAndMakeVisible (highGainSlider);
-    addAndMakeVisible (eqBypassButton);
+    auto& apvts = processor.getAPVTS();
+    low  = std::make_unique<LabeledKnob> (apvts, "eqLowGain",  "LOW",  " dB");
+    mid  = std::make_unique<LabeledKnob> (apvts, "eqMidGain",  "MID",  " dB");
+    high = std::make_unique<LabeledKnob> (apvts, "eqHighGain", "HIGH", " dB");
+
+    addAndMakeVisible (*low);
+    addAndMakeVisible (*mid);
+    addAndMakeVisible (*high);
+    addAndMakeVisible (bypass);
+
+    bypassAttach = std::make_unique<APVTS::ButtonAttachment> (apvts, "eqBypass", bypass);
 }
 
-EQPanel::~EQPanel() {}
+EQPanel::~EQPanel() = default;
 
 void EQPanel::paint (juce::Graphics& g)
 {
-    g.fillAll (juce::Colour (0xFF1a1a1a));
+    mc3::drawBrushedMetal (g, getLocalBounds().toFloat(), faceTop, faceBottom);
 
-    g.setColour (juce::Colours::cyan);
-    g.setFont (juce::Font (13.0f, juce::Font::bold));
-    g.drawText ("3-BAND EQ", 10, 6, 200, 18, juce::Justification::left);
+    auto plate = titleArea.toFloat();
+    mc3::drawBrushedMetal (g, plate, panelRaised, juce::Colour (0xFF202024), 4.0f);
+    g.setColour (amber.withAlpha (0.6f));
+    g.drawRoundedRectangle (plate.reduced (0.5f), 4.0f, 1.0f);
 
-    g.setColour (juce::Colour (0xFF444444));
-    g.drawHorizontalLine (getHeight() - 1, 0.0f, (float) getWidth());
+    auto lamp = juce::Rectangle<float> (9.0f, 9.0f).withCentre ({ plate.getX() + 14.0f, plate.getCentreY() });
+    g.setColour (amber.withAlpha (0.5f)); g.fillEllipse (lamp.expanded (4.0f));
+    g.setColour (amber);                  g.fillEllipse (lamp);
+
+    mc3::drawEngravedText (g, "EQUALISER", titleArea.withTrimmedLeft (28),
+                           juce::Justification::centredLeft,
+                           MC3LookAndFeel::engravedFont (15.0f, true), textLight);
+
+    g.setColour (juce::Colours::black.withAlpha (0.4f));
+    g.drawVerticalLine (getWidth() - 1, 8.0f, (float) getHeight() - 8.0f);
 }
 
 void EQPanel::resized()
 {
-    auto b = getLocalBounds().reduced (8);
-    b.removeFromTop (26);
+    auto area = getLocalBounds().reduced (12, 10);
+    titleArea = area.removeFromTop (26);
+    area.removeFromTop (8);
 
-    int knobSz  = 70;
-    int bypassH = 24;
-    int gap     = 6;
+    bypass.setBounds (area.removeFromBottom (28).reduced (4, 2).withSizeKeepingCentre (130, 24));
+    area.removeFromBottom (6);
 
-    auto row = b.removeFromTop (knobSz);
-
-    lowGainSlider.setBounds  (row.removeFromLeft (knobSz + gap).withHeight (knobSz));
-    midGainSlider.setBounds  (row.removeFromLeft (knobSz + gap).withHeight (knobSz));
-    highGainSlider.setBounds (row.removeFromLeft (knobSz + gap).withHeight (knobSz));
-
-    eqBypassButton.setBounds (b.removeFromTop (bypassH).reduced (4, 0));
+    const int colW = area.getWidth() / 3;
+    low->setBounds  (area.removeFromLeft (colW).reduced (6));
+    mid->setBounds  (area.removeFromLeft (colW).reduced (6));
+    high->setBounds (area.reduced (6));
 }

@@ -6,7 +6,7 @@ MC3PluginAudioProcessorEditor::MC3PluginAudioProcessorEditor (MC3PluginAudioProc
     mainComponent = std::make_unique<MainComponent> (audioProcessor);
     addAndMakeVisible (mainComponent.get());
 
-    setSize (1200, 600);
+    setSize (1080, 720);
     setResizable (false, false);
 }
 

@@ -45,6 +45,9 @@ target_sources(MC3MasteringCompressor PRIVATE
     src/dsp/SidechainFilter.h
 
     # GUI Components
+    src/ui/MC3LookAndFeel.cpp
+    src/ui/MC3LookAndFeel.h
+    src/ui/LabeledKnob.h
     src/ui/MainComponent.cpp
     src/ui/MainComponent.h
     src/ui/CompressorPanel.cpp

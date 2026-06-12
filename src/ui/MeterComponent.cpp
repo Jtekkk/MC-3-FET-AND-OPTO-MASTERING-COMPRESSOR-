@@ -1,231 +1,181 @@
 #include "MeterComponent.h"
+#include "MC3LookAndFeel.h"
 #include "../dsp/LevelMeter.h"
 #include "../dsp/CompressorProcessor.h"
-#include "../utils/Utilities.h"
 
-// ────────────────────────────────────────────────────────────────────────────
-// MeterDisplay
-// ────────────────────────────────────────────────────────────────────────────
+using namespace mc3::colours;
 
-MeterDisplay::MeterDisplay (const LevelMeter& m, const juce::String& lbl)
-    : meter (m), label (lbl)
+// ════════════════════════════════════════════════════════════════════════════
+// VuMeter
+// ════════════════════════════════════════════════════════════════════════════
+VuMeter::VuMeter (juce::String lbl, float minDb_, float maxDb_, bool reverse_,
+                  float redZoneNorm_, std::function<float()> provider_)
+    : label (std::move (lbl)), minDb (minDb_), maxDb (maxDb_), reverse (reverse_),
+      redZoneNorm (redZoneNorm_), provider (std::move (provider_))
 {
-    startTimer (50);  // Update every 50ms
+    currentAngle = targetAngle = angleLeft;
+    startTimerHz (30);
 }
 
-MeterDisplay::~MeterDisplay()
+VuMeter::~VuMeter() { stopTimer(); }
+
+float VuMeter::valueToAngle (float db) const
 {
-    stopTimer();
+    float norm = juce::jlimit (0.0f, 1.0f, (db - minDb) / (maxDb - minDb));
+    if (reverse) norm = 1.0f - norm;
+    return angleLeft + norm * (angleRight - angleLeft);
 }
 
-void MeterDisplay::timerCallback()
+void VuMeter::timerCallback()
 {
-    const float newPeak = meter.getPeakLevelDb();
-    const bool newClipping = meter.isClipping();
+    const float v = provider ? provider() : minDb;
+    targetAngle = valueToAngle (v);
 
-    if (newPeak != displayPeakDb || newClipping != displayClipping)
+    // overload when the needle is pinned in the red zone
+    const float redAngle = angleLeft + redZoneNorm * (angleRight - angleLeft);
+    overload = reverse ? (targetAngle <= angleLeft + (1.0f - redZoneNorm) * (angleRight - angleLeft) && v <= minDb + (maxDb - minDb) * (1.0f - redZoneNorm))
+                       : (targetAngle >= redAngle);
+
+    // ballistics: ease toward target (snappier on attack, slower on release)
+    const float coeff = (targetAngle > currentAngle) ? 0.5f : 0.2f;
+    currentAngle += (targetAngle - currentAngle) * coeff;
+    repaint();
+}
+
+void VuMeter::resized()
+{
+    pivot = { getWidth() * 0.5f, getHeight() * 0.96f };
+    needleLen = getHeight() * 0.80f;
+    renderFaceplate();
+}
+
+void VuMeter::renderFaceplate()
+{
+    const int w = getWidth(), h = getHeight();
+    if (w <= 0 || h <= 0) return;
+
+    faceplate = juce::Image (juce::Image::ARGB, w, h, true);
+    juce::Graphics g (faceplate);
+
+    auto bounds = juce::Rectangle<float> (0, 0, (float) w, (float) h);
+
+    // recessed bezel
+    mc3::drawBrushedMetal (g, bounds, metalDark, juce::Colour (0xFF2a2a2e), 6.0f);
+    auto window = bounds.reduced (7.0f);
+    g.setColour (juce::Colours::black);
+    g.fillRoundedRectangle (window, 4.0f);
+
+    // warm amber-lit faceplate
+    juce::ColourGradient lit (juce::Colour (0xFF3a2c12), window.getCentreX(), window.getBottom(),
+                              juce::Colour (0xFF1a1408), window.getCentreX(), window.getY(), false);
+    g.setGradientFill (lit);
+    g.fillRoundedRectangle (window, 4.0f);
+
+    // glow from the bottom (backlight)
+    juce::ColourGradient glow (amber.withAlpha (0.18f), pivot.x, pivot.y,
+                               juce::Colours::transparentBlack, pivot.x, pivot.y - needleLen, true);
+    g.setGradientFill (glow);
+    g.fillRoundedRectangle (window, 4.0f);
+
+    // scale arc + ticks
+    const float scaleR = needleLen * 0.92f;
+    const int   numTicks = 11;
+    for (int i = 0; i < numTicks; ++i)
     {
-        displayPeakDb = newPeak;
-        displayClipping = newClipping;
-        repaint();
+        const float t = (float) i / (float) (numTicks - 1);
+        const float a = angleLeft + t * (angleRight - angleLeft);
+        const bool inRed = (t >= redZoneNorm);
+        auto p1 = pivot.getPointOnCircumference (scaleR, a);
+        auto p2 = pivot.getPointOnCircumference (scaleR - (i % 5 == 0 ? 9.0f : 5.0f), a);
+        g.setColour (inRed ? red.withAlpha (0.9f) : amber.withAlpha (0.8f));
+        g.drawLine (p1.x, p1.y, p2.x, p2.y, (i % 5 == 0) ? 1.8f : 1.0f);
     }
-}
-
-void MeterDisplay::paint (juce::Graphics& g)
-{
-    auto bounds = getLocalBounds();
-
-    // Background
-    g.fillAll (juce::Colour (0xFF0a0a0a));
-    g.setColour (juce::Colour (0xFF1a1a1a));
-    g.fillRect (bounds.reduced (1));
-
-    // Draw scale and segments
-    g.setColour (juce::Colour (0xFF333333));
-    g.setFont (9.0f);
-
-    const int labelW = 32;
-    const int meterArea = bounds.getWidth() - labelW;
-
-    for (int db = METER_MIN_DB; db <= METER_MAX_DB; db += 6)
+    // arc line
+    juce::Path arc; arc.addCentredArc (pivot.x, pivot.y, scaleR, scaleR, 0.0f, angleLeft, angleRight, true);
+    g.setColour (amber.withAlpha (0.55f));
+    g.strokePath (arc, juce::PathStrokeType (1.2f));
+    // red segment of arc (only when a red zone is actually on-scale)
+    if (redZoneNorm <= 1.0f)
     {
-        const float norm = (float) (db - METER_MIN_DB) / (float) (METER_MAX_DB - METER_MIN_DB);
-        const int x = labelW + (int) (norm * meterArea);
-
-        g.drawVerticalLine (x, (float) bounds.getY(), (float) bounds.getBottom());
-        g.drawText (juce::String (db), x - 12, bounds.getBottom() - 11, 24, 9,
-                    juce::Justification::centred);
-    }
-
-    // Draw meter bar
-    const float normPeak = (displayPeakDb - METER_MIN_DB) / (float) (METER_MAX_DB - METER_MIN_DB);
-    const float barWidth = juce::jlimit (0.0f, 1.0f, normPeak) * meterArea;
-
-    if (barWidth > 0.0f)
-    {
-        // Color gradient: green → yellow → red
-        juce::Colour meterColour;
-        if (displayPeakDb < -12.0f)
-            meterColour = juce::Colours::limegreen;
-        else if (displayPeakDb < -6.0f)
-            meterColour = juce::Colour (0xFFffff00);  // Yellow
-        else
-            meterColour = juce::Colours::red;
-
-        if (displayClipping)
-            meterColour = juce::Colours::darkred;
-
-        g.setColour (meterColour);
-        g.fillRect (labelW, 3, (int) barWidth, bounds.getHeight() - 13);
-    }
-
-    // Draw border and label
-    g.setColour (juce::Colours::white.withAlpha (0.3f));
-    g.drawRect (labelW, 3, meterArea, bounds.getHeight() - 13, 1);
-
-    g.setColour (juce::Colours::white);
-    g.setFont (juce::Font (10.0f, juce::Font::bold));
-    g.drawText (label, 2, bounds.getY() + 2, labelW - 4, 11, juce::Justification::right);
-
-    // Clipping indicator
-    if (displayClipping)
-    {
-        g.setColour (juce::Colours::red);
-        g.setFont (juce::Font (8.0f, juce::Font::bold));
-        g.drawText ("CLIP", 2, bounds.getBottom() - 10, labelW - 4, 9,
-                    juce::Justification::centred);
-    }
-
-    // Current level text
-    g.setColour (juce::Colours::white.withAlpha (0.6f));
-    g.setFont (9.0f);
-    g.drawText (juce::String (displayPeakDb, 1) + "dB",
-                bounds.getRight() - 45, bounds.getY() + 2, 43, 11,
-                juce::Justification::right);
-}
-
-void MeterDisplay::resized()
-{
-    // Just paint, no child components
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-// GainReductionMeter
-// ────────────────────────────────────────────────────────────────────────────
-
-GainReductionMeter::GainReductionMeter (const CompressorProcessor& comp, const juce::String& lbl)
-    : compressor (comp), label (lbl)
-{
-    startTimer (50);
-}
-
-GainReductionMeter::~GainReductionMeter()
-{
-    stopTimer();
-}
-
-void GainReductionMeter::timerCallback()
-{
-    const float newGr = compressor.getGainReductionDb();
-    if (newGr != displayGrDb)
-    {
-        displayGrDb = newGr;
-        repaint();
-    }
-}
-
-void GainReductionMeter::paint (juce::Graphics& g)
-{
-    auto bounds = getLocalBounds();
-
-    // Background
-    g.fillAll (juce::Colour (0xFF0a0a0a));
-    g.setColour (juce::Colour (0xFF1a1a1a));
-    g.fillRect (bounds.reduced (1));
-
-    // Draw scale
-    g.setColour (juce::Colour (0xFF333333));
-    g.setFont (8.0f);
-
-    const int labelW = 32;
-    const int meterArea = bounds.getWidth() - labelW;
-
-    for (int db = GR_MIN_DB; db <= GR_MAX_DB; db += 6)
-    {
-        const float norm = (float) (db - GR_MIN_DB) / (float) (GR_MAX_DB - GR_MIN_DB);
-        const int x = labelW + (int) (norm * meterArea);
-        g.drawVerticalLine (x, (float) bounds.getY(), (float) bounds.getBottom());
+        juce::Path redArc;
+        redArc.addCentredArc (pivot.x, pivot.y, scaleR, scaleR, 0.0f,
+                              angleLeft + redZoneNorm * (angleRight - angleLeft), angleRight, true);
+        g.setColour (red.withAlpha (0.8f));
+        g.strokePath (redArc, juce::PathStrokeType (1.6f));
     }
 
-    // Draw GR bar (shows reduction, so starts from right at 0dB, goes left toward -30dB)
-    const float grNorm = (displayGrDb - GR_MIN_DB) / (float) (GR_MAX_DB - GR_MIN_DB);
-    const float barWidth = juce::jlimit (0.0f, 1.0f, -grNorm) * meterArea;  // Negative GR
-
-    if (barWidth > 0.1f)
-    {
-        g.setColour (juce::Colour (0xFF0099ff));  // Cyan for GR
-        g.fillRect (labelW, 3, (int) barWidth, bounds.getHeight() - 13);
-    }
-
-    // Draw border
-    g.setColour (juce::Colours::white.withAlpha (0.3f));
-    g.drawRect (labelW, 3, meterArea, bounds.getHeight() - 13, 1);
-
-    // Label
-    g.setColour (juce::Colours::white);
-    g.setFont (juce::Font (9.0f, juce::Font::bold));
-    g.drawText (label, 2, bounds.getY() + 2, labelW - 4, 11, juce::Justification::right);
-
-    // GR value
-    g.setColour (juce::Colours::cyan);
-    g.setFont (8.0f);
-    g.drawText (juce::String (displayGrDb, 1) + "dB",
-                bounds.getRight() - 45, bounds.getY() + 2, 43, 11,
-                juce::Justification::right);
+    // label engraved at bottom
+    mc3::drawEngravedText (g, label, juce::Rectangle<int> (0, h - 17, w, 14),
+                           juce::Justification::centred, MC3LookAndFeel::engravedFont (11.0f, true),
+                           amber);
 }
 
-void GainReductionMeter::resized() {}
+void VuMeter::paint (juce::Graphics& g)
+{
+    if (faceplate.isValid())
+        g.drawImageAt (faceplate, 0, 0);
 
-// ────────────────────────────────────────────────────────────────────────────
+    // needle
+    auto tip = pivot.getPointOnCircumference (needleLen, currentAngle);
+    g.setColour (juce::Colours::black.withAlpha (0.5f));
+    g.drawLine (pivot.x + 1.0f, pivot.y + 1.0f, tip.x + 1.0f, tip.y + 1.0f, 2.6f);
+    g.setColour (overload ? red : juce::Colour (0xFFf3e8d0));
+    g.drawLine (pivot.x, pivot.y, tip.x, tip.y, 2.0f);
+
+    // hub
+    g.setColour (metalLight);
+    g.fillEllipse (juce::Rectangle<float> (12.0f, 12.0f).withCentre (pivot));
+    g.setColour (juce::Colours::black.withAlpha (0.5f));
+    g.drawEllipse (juce::Rectangle<float> (12.0f, 12.0f).withCentre (pivot), 1.0f);
+
+    // overload lamp
+    auto lamp = juce::Rectangle<float> (8.0f, 8.0f).withCentre ({ getWidth() - 14.0f, 14.0f });
+    if (overload) { g.setColour (red.withAlpha (0.5f)); g.fillEllipse (lamp.expanded (4.0f)); g.setColour (red); }
+    else            g.setColour (juce::Colour (0xFF40181a));
+    g.fillEllipse (lamp);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 // MeterPanel
-// ────────────────────────────────────────────────────────────────────────────
-
-MeterPanel::MeterPanel (const LevelMeter& inputMeter, const LevelMeter& outputMeter,
-                        const CompressorProcessor& fetComp, const CompressorProcessor& optoComp)
+// ════════════════════════════════════════════════════════════════════════════
+MeterPanel::MeterPanel (const LevelMeter& in, const LevelMeter& out,
+                        const CompressorProcessor& fet, const CompressorProcessor& opto)
 {
-    inputDisplay = std::make_unique<MeterDisplay> (inputMeter, "IN");
-    outputDisplay = std::make_unique<MeterDisplay> (outputMeter, "OUT");
-    fetGrMeter = std::make_unique<GainReductionMeter> (fetComp, "FET");
-    optoGrMeter = std::make_unique<GainReductionMeter> (optoComp, "OPTO");
+    inputMeter  = std::make_unique<VuMeter> ("INPUT",  -48.0f, 0.0f, false, 0.86f,
+                                             [&in]  { return in.getPeakLevelDb(); });
+    outputMeter = std::make_unique<VuMeter> ("OUTPUT", -48.0f, 0.0f, false, 0.86f,
+                                             [&out] { return out.getPeakLevelDb(); });
+    // GR meters: rest at the right (0 dB reduction), swing left as they compress;
+    // no red zone (reverse=false, red disabled off-scale).
+    fetGr  = std::make_unique<VuMeter> ("FET  GR",  -24.0f, 0.0f, false, 2.0f,
+                                        [&fet]  { return fet.getGainReductionDb(); });
+    optoGr = std::make_unique<VuMeter> ("OPTO  GR", -24.0f, 0.0f, false, 2.0f,
+                                        [&opto] { return opto.getGainReductionDb(); });
 
-    addAndMakeVisible (inputDisplay.get());
-    addAndMakeVisible (outputDisplay.get());
-    addAndMakeVisible (fetGrMeter.get());
-    addAndMakeVisible (optoGrMeter.get());
+    addAndMakeVisible (*inputMeter);
+    addAndMakeVisible (*fetGr);
+    addAndMakeVisible (*optoGr);
+    addAndMakeVisible (*outputMeter);
 }
 
-MeterPanel::~MeterPanel() {}
+MeterPanel::~MeterPanel() = default;
 
 void MeterPanel::paint (juce::Graphics& g)
 {
-    g.fillAll (juce::Colour (0xFF222222));
-    g.setColour (juce::Colour (0xFF444444));
+    mc3::drawBrushedMetal (g, getLocalBounds().toFloat(), juce::Colour (0xFF26262b), juce::Colour (0xFF17171b));
+    g.setColour (juce::Colours::black.withAlpha (0.5f));
     g.drawHorizontalLine (getHeight() - 1, 0.0f, (float) getWidth());
 }
 
 void MeterPanel::resized()
 {
-    auto b = getLocalBounds().reduced (8, 3);
+    auto b = getLocalBounds().reduced (10, 8);
+    const int n = 4;
+    const int gap = 10;
+    const int w = (b.getWidth() - gap * (n - 1)) / n;
 
-    const int rowHeight = b.getHeight() / 2;
-
-    // Top row: input level, FET GR
-    auto topRow = b.removeFromTop (rowHeight).reduced (0, 1);
-    inputDisplay->setBounds (topRow.removeFromLeft (b.getWidth() / 2));
-    fetGrMeter->setBounds (topRow);
-
-    // Bottom row: output level, Opto GR
-    auto bottomRow = b.reduced (0, 1);
-    outputDisplay->setBounds (bottomRow.removeFromLeft (b.getWidth() / 2));
-    optoGrMeter->setBounds (bottomRow);
+    inputMeter->setBounds  (b.removeFromLeft (w)); b.removeFromLeft (gap);
+    fetGr->setBounds       (b.removeFromLeft (w)); b.removeFromLeft (gap);
+    optoGr->setBounds      (b.removeFromLeft (w)); b.removeFromLeft (gap);
+    outputMeter->setBounds (b.removeFromLeft (w));
 }
