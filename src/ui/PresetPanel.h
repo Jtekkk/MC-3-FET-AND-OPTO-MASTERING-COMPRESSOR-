@@ -25,6 +25,9 @@ private:
     juce::TextButton saveButton { "Save" };
     juce::TextButton deleteButton { "Delete" };
 
+    // Kept alive while a non-modal save dialog is on screen
+    std::unique_ptr<juce::AlertWindow> activeWindow;
+
     void updatePresetList();
     void showSaveDialog();
     void confirmDelete();

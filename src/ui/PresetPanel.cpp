@@ -87,22 +87,28 @@ void PresetPanel::updatePresetList()
 
 void PresetPanel::showSaveDialog()
 {
-    auto options = juce::AlertWindow::getDefaultAlertWindow();
+    activeWindow = std::make_unique<juce::AlertWindow> (
+        "Save Preset", "Enter preset name:", juce::MessageBoxIconType::NoIcon);
 
-    juce::AlertWindow w ("Save Preset", "Enter preset name:", juce::AlertWindow::NoIcon);
-    w.addTextEditor ("presetName", presetManager.getCurrentPresetName(), "Name:");
-    w.addButton ("Save", 1, juce::KeyPress (juce::KeyPress::returnKey));
-    w.addButton ("Cancel", 0, juce::KeyPress (juce::KeyPress::escapeKey));
+    activeWindow->addTextEditor ("presetName", presetManager.getCurrentPresetName(), "Name:");
+    activeWindow->addButton ("Save",   1, juce::KeyPress (juce::KeyPress::returnKey));
+    activeWindow->addButton ("Cancel", 0, juce::KeyPress (juce::KeyPress::escapeKey));
 
-    if (w.runModalLoop() != 0)
-    {
-        const auto presetName = w.getTextEditorContents ("presetName").trim();
-        if (presetName.isNotEmpty())
+    activeWindow->enterModalState (true,
+        juce::ModalCallbackFunction::create ([this] (int result)
         {
-            presetManager.savePreset (presetName);
-            updatePresetList();
-        }
-    }
+            if (result != 0 && activeWindow != nullptr)
+            {
+                const auto presetName = activeWindow->getTextEditorContents ("presetName").trim();
+                if (presetName.isNotEmpty())
+                {
+                    presetManager.savePreset (presetName);
+                    updatePresetList();
+                }
+            }
+            activeWindow.reset();
+        }),
+        false);
 }
 
 void PresetPanel::confirmDelete()
@@ -111,7 +117,7 @@ void PresetPanel::confirmDelete()
     if (currentIndex < 0)
     {
         juce::AlertWindow::showMessageBoxAsync (
-            juce::AlertWindow::InfoIcon,
+            juce::MessageBoxIconType::InfoIcon,
             "Delete Preset",
             "No preset selected");
         return;
@@ -123,15 +129,17 @@ void PresetPanel::confirmDelete()
 
     const auto presetName = presets[currentIndex].name;
 
-    juce::AlertWindow w ("Delete Preset",
-                         "Delete \"" + presetName + "\"?",
-                         juce::AlertWindow::WarningIcon);
-    w.addButton ("Delete", 1);
-    w.addButton ("Cancel", 0, juce::KeyPress (juce::KeyPress::escapeKey));
-
-    if (w.runModalLoop() != 0)
-    {
-        presetManager.deletePreset ((size_t) currentIndex);
-        updatePresetList();
-    }
+    juce::AlertWindow::showOkCancelBox (
+        juce::MessageBoxIconType::WarningIcon,
+        "Delete Preset",
+        "Delete \"" + presetName + "\"?",
+        "Delete", "Cancel", nullptr,
+        juce::ModalCallbackFunction::create ([this, currentIndex] (int result)
+        {
+            if (result == 1)
+            {
+                presetManager.deletePreset ((size_t) currentIndex);
+                updatePresetList();
+            }
+        }));
 }

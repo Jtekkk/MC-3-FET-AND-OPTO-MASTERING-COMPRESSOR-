@@ -128,7 +128,7 @@ void MC3PluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
     {
         auto* oversampledBuf = oversampler->upsample (buffer);
         process (*oversampledBuf);
-        oversampler->downsample (*oversampledBuf, buffer);
+        oversampler->downsample (buffer);
     }
     else
     {
@@ -156,8 +156,9 @@ const juce::String MC3PluginAudioProcessor::getName() const
 
 void MC3PluginAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
-    auto state = apvts.copyStateAsXml();
-    copyXmlToBinary (*state, destData);
+    auto state = apvts.copyState();
+    std::unique_ptr<juce::XmlElement> xml (state.createXml());
+    copyXmlToBinary (*xml, destData);
 }
 
 void MC3PluginAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
