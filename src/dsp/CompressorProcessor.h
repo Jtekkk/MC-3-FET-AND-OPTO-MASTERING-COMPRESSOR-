@@ -2,6 +2,7 @@
 
 #include <juce_audio_basics/juce_audio_basics.h>
 #include "../utils/ParameterSmoothing.h"
+#include "SidechainFilter.h"
 #include <deque>
 
 enum class CompressorType { FET, OPTO };
@@ -23,6 +24,8 @@ public:
     void setKneeWidth  (float db);
     void setLookahead  (float ms);
     void setDryWet     (float mix);  // 0.0 = dry, 1.0 = wet
+    void setSidechainFreq (float hz);
+    void setSidechainEnabled (bool enabled);
 
     float getGainReductionDb() const noexcept { return gainReductionDb; }
 
@@ -47,6 +50,8 @@ private:
     float kneeWidthTarget  = 0.0f;  // Hard knee
     float lookaheadMsTarget = 0.0f;
     float dryWetTarget     = 1.0f;
+    float sidechainFreqTarget = 20.0f;
+    bool sidechainEnabledTarget = false;
 
     // Smoothed parameters
     ParameterSmoother thresholdSmooth  { -20.0f };
@@ -76,4 +81,8 @@ private:
     static constexpr float OPTO_ATTACK_MULT = 1.3f;   // Slower attack
     static constexpr float FET_RELEASE_MULT = 0.7f;   // Faster release
     static constexpr float OPTO_RELEASE_MULT = 1.5f;  // Slower release
+
+    SidechainFilter sidechainFilter;
+    float sidechainFreq = 20.0f;
+    bool sidechainEnabled = false;
 };

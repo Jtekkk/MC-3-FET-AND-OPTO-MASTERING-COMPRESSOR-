@@ -15,6 +15,7 @@ void CompressorProcessor::prepareToPlay (double sr, int samplesPerBlock)
     lookaheadBuffer.clear();
     lookaheadBuffer.resize (samplesPerBlock * 2, 0.0f);
 
+    sidechainFilter.prepareToPlay (sr);
     updateCoefficientsIfNeeded();
 }
 
@@ -43,7 +44,12 @@ inline float CompressorProcessor::detectPeak (const juce::AudioBuffer<float>& bu
     {
         const auto* samples = buffer.getReadPointer (ch);
         for (int n = startSample; n < endSample; ++n)
-            peak = std::max (peak, std::abs (samples[n]));
+        {
+            float sample = samples[n];
+            if (sidechainEnabled)
+                sample = sidechainFilter.processSample (sample);
+            peak = std::max (peak, std::abs (sample));
+        }
     }
 
     return MC3Utilities::linearToDb (peak);
@@ -229,6 +235,26 @@ void CompressorProcessor::setLookahead (float ms)
 void CompressorProcessor::setDryWet (float mix)
 {
     dryWetTarget = juce::jlimit (0.0f, 1.0f, mix);
+}
+
+void CompressorProcessor::setSidechainFreq (float hz)
+{
+    sidechainFreqTarget = juce::jlimit (20.0f, 20000.0f, hz);
+    if (sidechainFreq != sidechainFreqTarget)
+    {
+        sidechainFreq = sidechainFreqTarget;
+        sidechainFilter.setFrequency (sidechainFreq);
+    }
+}
+
+void CompressorProcessor::setSidechainEnabled (bool enabled)
+{
+    sidechainEnabledTarget = enabled;
+    if (sidechainEnabled != sidechainEnabledTarget)
+    {
+        sidechainEnabled = sidechainEnabledTarget;
+        sidechainFilter.setEnabled (sidechainEnabled);
+    }
 }
 
 void CompressorProcessor::updateCoefficientsIfNeeded()

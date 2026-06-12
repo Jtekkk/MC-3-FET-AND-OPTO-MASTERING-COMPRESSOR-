@@ -85,6 +85,8 @@ void MC3PluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
     fetCompressor->setKneeWidth  (param (apvts, "fetKneeWidth"));
     fetCompressor->setLookahead  (param (apvts, "fetLookahead"));
     fetCompressor->setDryWet     (param (apvts, "dryWetMix"));
+    fetCompressor->setSidechainFreq     (param (apvts, "fetSidechainFreq"));
+    fetCompressor->setSidechainEnabled  (param (apvts, "fetSidechainEnabled") > 0.5f);
 
     optoCompressor->setThreshold  (param (apvts, "optoThreshold"));
     optoCompressor->setRatio      (param (apvts, "optoRatio"));
@@ -94,6 +96,8 @@ void MC3PluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
     optoCompressor->setKneeWidth  (param (apvts, "optoKneeWidth"));
     optoCompressor->setLookahead  (param (apvts, "optoLookahead"));
     optoCompressor->setDryWet     (param (apvts, "dryWetMix"));
+    optoCompressor->setSidechainFreq     (param (apvts, "optoSidechainFreq"));
+    optoCompressor->setSidechainEnabled  (param (apvts, "optoSidechainEnabled") > 0.5f);
 
     eqProcessor->setLowGain  (param (apvts, "eqLowGain"));
     eqProcessor->setMidGain  (param (apvts, "eqMidGain"));

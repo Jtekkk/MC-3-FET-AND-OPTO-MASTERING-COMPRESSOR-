@@ -40,6 +40,8 @@ target_sources(MC3MasteringCompressor PRIVATE
     src/dsp/Oversampler.h
     src/dsp/LevelMeter.cpp
     src/dsp/LevelMeter.h
+    src/dsp/SidechainFilter.cpp
+    src/dsp/SidechainFilter.h
 
     # GUI Components
     src/ui/MainComponent.cpp

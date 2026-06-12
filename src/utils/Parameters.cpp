@@ -38,6 +38,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
         "fetLookahead", "FET Lookahead", "",
         juce::NormalisableRange<float> (0.0f, 50.0f), 0.0f, nullptr, nullptr));
 
+    params.push_back (std::make_unique<Parameter> (
+        "fetSidechainFreq", "FET Sidechain Freq", "",
+        juce::NormalisableRange<float> (20.0f, 5000.0f, 0.0f, 0.4f), 20.0f, nullptr, nullptr));
+
+    params.push_back (std::make_unique<Parameter> (
+        "fetSidechainEnabled", "FET Sidechain Enabled", "",
+        juce::NormalisableRange<float> (0.0f, 1.0f), 0.0f, nullptr, nullptr));
+
     // Opto Compressor Parameters
     params.push_back (std::make_unique<Parameter> (
         "optoThreshold", "Opto Threshold", "",
@@ -70,6 +78,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
     params.push_back (std::make_unique<Parameter> (
         "optoLookahead", "Opto Lookahead", "",
         juce::NormalisableRange<float> (0.0f, 50.0f), 0.0f, nullptr, nullptr));
+
+    params.push_back (std::make_unique<Parameter> (
+        "optoSidechainFreq", "Opto Sidechain Freq", "",
+        juce::NormalisableRange<float> (20.0f, 5000.0f, 0.0f, 0.4f), 20.0f, nullptr, nullptr));
+
+    params.push_back (std::make_unique<Parameter> (
+        "optoSidechainEnabled", "Opto Sidechain Enabled", "",
+        juce::NormalisableRange<float> (0.0f, 1.0f), 0.0f, nullptr, nullptr));
 
     // EQ Parameters
     params.push_back (std::make_unique<Parameter> (
