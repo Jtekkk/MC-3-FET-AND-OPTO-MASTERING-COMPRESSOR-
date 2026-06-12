@@ -38,6 +38,8 @@ target_sources(MC3MasteringCompressor PRIVATE
     src/dsp/TransformerSimulation.h
     src/dsp/Oversampler.cpp
     src/dsp/Oversampler.h
+    src/dsp/LevelMeter.cpp
+    src/dsp/LevelMeter.h
 
     # GUI Components
     src/ui/MainComponent.cpp
@@ -48,6 +50,8 @@ target_sources(MC3MasteringCompressor PRIVATE
     src/ui/EQPanel.h
     src/ui/ControlsPanel.cpp
     src/ui/ControlsPanel.h
+    src/ui/MeterComponent.cpp
+    src/ui/MeterComponent.h
 
     # Utilities
     src/utils/Parameters.cpp

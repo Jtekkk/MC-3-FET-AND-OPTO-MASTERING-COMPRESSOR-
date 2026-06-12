@@ -5,6 +5,7 @@
 #include "dsp/EQProcessor.h"
 #include "dsp/TransformerSimulation.h"
 #include "dsp/Oversampler.h"
+#include "dsp/LevelMeter.h"
 #include "utils/Parameters.h"
 
 class MC3PluginAudioProcessor : public juce::AudioProcessor,
@@ -40,6 +41,8 @@ public:
     void setStateInformation (const void* data, int sizeInBytes) override;
 
     juce::AudioProcessorValueTreeState& getAPVTS() { return apvts; }
+    const LevelMeter& getInputMeter()  const { return *inputMeter; }
+    const LevelMeter& getOutputMeter() const { return *outputMeter; }
 
 private:
     void valueTreePropertyChanged (juce::ValueTree& treeWhosePropertyChanged,
@@ -53,6 +56,8 @@ private:
     std::unique_ptr<TransformerSimulation> inputTransformer;
     std::unique_ptr<TransformerSimulation> outputTransformer;
     std::unique_ptr<Oversampler> oversampler;
+    std::unique_ptr<LevelMeter> inputMeter;
+    std::unique_ptr<LevelMeter> outputMeter;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MC3PluginAudioProcessor)
 };

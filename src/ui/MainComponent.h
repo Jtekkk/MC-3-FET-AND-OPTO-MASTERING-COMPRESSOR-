@@ -6,6 +6,7 @@ class MC3PluginAudioProcessor;
 class CompressorPanel;
 class EQPanel;
 class ControlsPanel;
+class MeterPanel;
 
 class MainComponent : public juce::Component
 {
@@ -22,6 +23,7 @@ private:
     std::unique_ptr<CompressorPanel> compressorPanel;
     std::unique_ptr<EQPanel> eqPanel;
     std::unique_ptr<ControlsPanel> controlsPanel;
+    std::unique_ptr<MeterPanel> meterPanel;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 };

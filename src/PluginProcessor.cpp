@@ -24,6 +24,8 @@ void MC3PluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBl
     inputTransformer  = std::make_unique<TransformerSimulation> (TransformerType::INPUT);
     outputTransformer = std::make_unique<TransformerSimulation> (TransformerType::OUTPUT);
     oversampler      = std::make_unique<Oversampler> (8, sampleRate);
+    inputMeter       = std::make_unique<LevelMeter>();
+    outputMeter      = std::make_unique<LevelMeter>();
 
     fetCompressor->prepareToPlay    (sampleRate, samplesPerBlock);
     optoCompressor->prepareToPlay   (sampleRate, samplesPerBlock);
@@ -31,6 +33,8 @@ void MC3PluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBl
     inputTransformer->prepareToPlay  (sampleRate, samplesPerBlock);
     outputTransformer->prepareToPlay (sampleRate, samplesPerBlock);
     oversampler->prepareToPlay       (sampleRate, samplesPerBlock);
+    inputMeter->prepareToPlay        (sampleRate);
+    outputMeter->prepareToPlay       (sampleRate);
 }
 
 void MC3PluginAudioProcessor::releaseResources()
@@ -41,6 +45,8 @@ void MC3PluginAudioProcessor::releaseResources()
     inputTransformer.reset();
     outputTransformer.reset();
     oversampler.reset();
+    inputMeter.reset();
+    outputMeter.reset();
 }
 
 bool MC3PluginAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
@@ -64,6 +70,9 @@ void MC3PluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
 
     for (int i = getTotalNumInputChannels(); i < getTotalNumOutputChannels(); ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
+
+    // ── Measure input level ───────────────────────────────────────────────
+    inputMeter->process (buffer);
 
     // ── Push current parameter values to DSP objects ──────────────────────
     fetCompressor->setThreshold  (param (apvts, "fetThreshold"));
@@ -118,6 +127,9 @@ void MC3PluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
 
     // Convert output gain from dB to linear before applying
     buffer.applyGain (MC3Utilities::dbToLinear (outputGainDb));
+
+    // ── Measure output level ──────────────────────────────────────────────
+    outputMeter->process (buffer);
 }
 
 juce::AudioProcessorEditor* MC3PluginAudioProcessor::createEditor()
